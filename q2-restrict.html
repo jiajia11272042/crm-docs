@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>【Q2需求】产品审核支持禁投国家提示 — CRM 侧需求文档</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --primary:#3981ff; --link:#409EFF; --danger:#F56C6C; --success:#67C23A;
+    --warning:#E6A23C; --text:#303133; --text-2:#606266; --text-3:#909399;
+    --border:#dcdfe6; --bg-page:#f0f2f5; --bg-card:#fff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Helvetica,Arial,sans-serif;
+    background:var(--bg-page);color:var(--text);line-height:1.7;font-size:14px;}
+  /* 顶部栏 */
+  .topbar{position:sticky;top:0;z-index:100;background:linear-gradient(90deg,#3981ff,#5b9bff);
+    color:#fff;padding:14px 32px;box-shadow:0 2px 8px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{font-size:18px;margin:0;font-weight:600;}
+  .topbar .meta{font-size:12px;opacity:.92;}
+  /* 布局 */
+  .layout{display:flex;max-width:1400px;margin:0 auto;}
+  .toc{position:sticky;top:64px;align-self:flex-start;width:240px;flex:0 0 240px;
+    height:calc(100vh - 64px);overflow-y:auto;padding:20px 12px;background:#fff;border-right:1px solid #ebeef5;}
+  .toc a{display:block;padding:7px 12px;color:var(--text-2);text-decoration:none;border-radius:6px;font-size:13px;margin-bottom:2px;}
+  .toc a:hover{background:#ecf5ff;color:var(--primary);}
+  .toc a.sub{padding-left:26px;font-size:12.5px;color:var(--text-3);}
+  .toc .grp{font-size:12px;color:#c0c4cc;padding:10px 12px 4px;font-weight:600;}
+  .content{flex:1;padding:28px 36px;min-width:0;}
+  /* 卡片 */
+  .card{background:var(--bg-card);border-radius:10px;padding:26px 30px;margin-bottom:22px;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .sec-title{font-size:17px;color:#333;margin:0 0 18px;font-weight:600;display:flex;align-items:center;}
+  .sec-title::before{content:"";display:inline-block;width:4px;height:18px;background:var(--primary);
+    border-radius:3px;margin-right:10px;}
+  h3{font-size:15px;color:var(--text);margin:24px 0 12px;}
+  h4{font-size:14px;color:var(--text-2);margin:18px 0 10px;}
+  p{margin:8px 0;}
+  code{background:#f5f7fa;color:#c7254e;padding:2px 6px;border-radius:4px;font-size:12.5px;
+    font-family:"SF Mono",Consolas,Monaco,monospace;}
+  /* 标签 */
+  .badge{display:inline-block;padding:1px 9px;border-radius:10px;font-size:12px;font-weight:600;vertical-align:middle;}
+  .badge.p0{background:#fef0f0;color:var(--danger);border:1px solid #fde2e2;}
+  .badge.p1{background:#fdf6ec;color:var(--warning);border:1px solid #faecd8;}
+  .badge.be{background:#ecf5ff;color:var(--primary);border:1px solid #d9ecff;}
+  .badge.fe{background:#f0f9eb;color:var(--success);border:1px solid #e1f3d8;}
+  /* 表格 */
+  table.tbl{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+  table.tbl th{background:#f5f7fa;color:#909399;font-weight:600;text-align:left;padding:10px 12px;border:1px solid #ebeef5;}
+  table.tbl td{padding:10px 12px;border:1px solid #ebeef5;color:var(--text-2);vertical-align:top;}
+  table.tbl tr:hover td{background:#fafcff;}
+  /* 警告 callout */
+  .callout{border-radius:8px;padding:14px 18px;margin:14px 0;font-size:13px;display:flex;gap:10px;}
+  .callout .ico{flex:0 0 auto;font-size:16px;line-height:1.5;}
+  .callout.warn{background:#fdf6ec;border:1px solid #f5dab1;color:#b88230;}
+  .callout.info{background:#eef4ff;border:1px solid #d6e4ff;color:#5a6b8c;}
+  .callout.danger{background:#fef0f0;border:1px solid #fde2e2;color:#cf6d6d;}
+  .callout.success{background:#f0f9eb;border:1px solid #e1f3d8;color:#5b8a3c;}
+  /* mermaid 容器 */
+  .diagram{background:#fbfcfe;border:1px dashed #d6e0f0;border-radius:8px;padding:18px;margin:14px 0;text-align:center;overflow-x:auto;}
+  .diagram-cap{font-size:12px;color:var(--text-3);margin-top:8px;}
+  /* ===== 原型 (element-ui 仿真) ===== */
+  .proto{border:1px solid #e4e7ed;border-radius:8px;overflow:hidden;margin:16px 0;background:#fff;}
+  .proto-bar{background:#f5f7fa;border-bottom:1px solid #e4e7ed;padding:8px 14px;font-size:12px;color:#909399;display:flex;align-items:center;gap:8px;}
+  .proto-dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .proto-body{padding:22px 26px;}
+  .eu-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:14px;margin-bottom:18px;}
+  .eu-header .h{font-size:15px;font-weight:600;color:#333;}
+  .form-row{display:flex;flex-wrap:wrap;gap:8px 40px;margin-bottom:6px;}
+  .eu-item{margin-bottom:16px;}
+  .eu-label{font-size:13px;color:var(--text-2);margin-bottom:6px;display:block;font-weight:500;}
+  .eu-label .req{color:var(--danger);margin-right:3px;}
+  .eu-input,.eu-select{width:300px;max-width:100%;height:34px;border:1px solid var(--border);border-radius:5px;
+    padding:0 12px;font-size:13px;color:var(--text);background:#fff;display:inline-flex;align-items:center;justify-content:space-between;}
+  .eu-input.disabled,.eu-select.disabled{background:#f5f7fa;color:#a8abb2;cursor:not-allowed;}
+  .eu-select{cursor:pointer;}
+  .eu-select .caret{color:#c0c4cc;}
+  .eu-textarea{width:100%;min-height:64px;border:1px solid var(--border);border-radius:5px;padding:8px 12px;font-size:13px;color:var(--text);}
+  .eu-btn{height:34px;padding:0 18px;border-radius:5px;font-size:13px;border:1px solid var(--primary);
+    background:var(--primary);color:#fff;cursor:pointer;}
+  .eu-btn.plain{background:#ecf5ff;color:var(--primary);}
+  .eu-btn.danger{background:var(--danger);border-color:var(--danger);}
+  .eu-btn.default{background:#fff;color:var(--text-2);border-color:var(--border);}
+  .eu-btn:disabled{opacity:.55;cursor:not-allowed;}
+  .eu-btns{text-align:right;border-top:1px solid #eee;padding-top:18px;margin-top:8px;}
+  .eu-radio{display:inline-flex;align-items:center;gap:6px;margin-right:24px;font-size:13px;color:var(--text-2);cursor:pointer;}
+  .eu-radio i{width:15px;height:15px;border:1px solid var(--border);border-radius:50%;display:inline-block;position:relative;}
+  .eu-radio.on i{border-color:var(--primary);}
+  .eu-radio.on i::after{content:"";width:7px;height:7px;background:var(--primary);border-radius:50%;position:absolute;top:3px;left:3px;}
+  /* 国家标签 */
+  .ctag{display:inline-block;padding:3px 11px;border-radius:4px;font-size:12px;margin:3px 5px 3px 0;
+    background:#f4f4f5;color:#909399;border:1px solid #e9e9eb;}
+  .ctag.forbid{background:#fef0f0;color:var(--danger);border:1px solid #fbc4c4;font-weight:600;}
+  .ctag.forbid::before{content:"⛔ ";}
+  /* element 表格仿真 */
+  .eu-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;}
+  .eu-table th{background:#f5f7fa;color:#909399;font-weight:600;padding:8px 10px;border:1px solid #ebeef5;text-align:left;}
+  .eu-table td{padding:8px 10px;border:1px solid #ebeef5;color:var(--text-2);}
+  .pill{display:inline-block;padding:1px 8px;border-radius:9px;font-size:11px;}
+  .pill.wait{background:#f4f4f5;color:#909399;}
+  .pill.rej{background:#fef0f0;color:var(--danger);}
+  .pill.pass{background:#f0f9eb;color:var(--success);}
+  .risk-tag{padding:1px 7px;border-radius:4px;font-size:11px;}
+  .risk-tag.high{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}
+  .risk-tag.mid{background:#fefce8;border:1px solid #fef08a;color:#854d0e;}
+  .risk-tag.low{background:#f0f9ff;border:1px solid #bee3f8;color:#3182ce;}
+  /* 交互说明列表 */
+  ol.flow,ul.bul{margin:10px 0;padding-left:22px;}
+  ol.flow li,ul.bul li{margin:6px 0;color:var(--text-2);}
+  .try-hint{font-size:12px;color:var(--primary);background:#ecf5ff;border-radius:6px;padding:6px 12px;display:inline-block;margin-bottom:10px;}
+  .anchor{scroll-margin-top:80px;}
+  .json-box{background:#1e2430;color:#c9d1d9;border-radius:8px;padding:16px 18px;font-size:12.5px;
+    font-family:"SF Mono",Consolas,Monaco,monospace;overflow-x:auto;line-height:1.6;white-space:pre;}
+  .json-box .k{color:#79c0ff;} .json-box .s{color:#a5d6ff;} .json-box .c{color:#8b949e;} .json-box .n{color:#ffa657;}
+  hr.sep{border:0;border-top:1px solid #ebeef5;margin:26px 0;}
+  .kpi{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0;}
+  .kpi .box{flex:1;min-width:150px;background:#f8faff;border:1px solid #e6efff;border-radius:8px;padding:14px 16px;}
+  .kpi .box .t{font-size:12px;color:var(--text-3);}
+  .kpi .box .v{font-size:15px;color:var(--primary);font-weight:600;margin-top:4px;}
+  .footer{text-align:center;color:#c0c4cc;font-size:12px;padding:30px 0;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>【Q2需求】产品审核支持禁投国家提示</h1>
+  <div class="meta">CRM 侧需求文档 · v1.0 · 基于 <code style="background:rgba(255,255,255,.18);color:#fff">SP2604-miads-product-approval</code> · 2026-06</div>
+</div>
+
+<div class="layout">
+  <!-- 目录 -->
+  <nav class="toc">
+    <div class="grp">总览</div>
+    <a href="#bg">一、需求背景与目标</a>
+    <a href="#flow">二、总体业务流程</a>
+    <a href="#config">三、禁投配置说明</a>
+    <a href="#data">四、数据结构与接口总览</a>
+    <div class="grp">具体需求</div>
+    <a href="#req1">需求一 · 单条审核详情提示</a>
+    <a href="#req1" class="sub">原型 / 流程图 / 交互</a>
+    <a href="#req2">需求二 · 批量审批提示</a>
+    <a href="#req2" class="sub">原型 / 流程图 / 交互</a>
+    <a href="#req3">需求三 · 修改审核结果提示</a>
+    <a href="#req3" class="sub">原型 / 流程图 / 交互</a>
+    <a href="#req4">需求四 · 历史产品批量驳回 <span style="font-size:11px;color:#c0c4cc">(待定)</span></a>
+    <a href="#req4" class="sub">原型 / 流程图 / 交互</a>
+    <div class="grp">附录</div>
+    <a href="#edge">五、边界与异常</a>
+    <a href="#faq">六、FAQ</a>
+  </nav>
+
+  <main class="content">
+
+    <!-- ========== 背景 ========== -->
+    <section class="card anchor" id="bg">
+      <p class="sec-title">一、需求背景与目标</p>
+      <h3>背景</h3>
+      <p>IIB-CRM 已与 miads 打通产品准入审核链路（<strong>LLC → 法务 → RSA</strong>）。部分品类在部分国家属于<strong>禁投品类</strong>，但广告主申报的品类不一定准确，审核人员在更正品类（所属行业）时<strong>无法直观知道该品类在哪些国家禁投</strong>，容易错判放行。</p>
+      <p>本需求要求 CRM 在产品准入审核的各个环节，将<strong>禁投信息实时提示</strong>给审核人员，并在审批提交时<strong>自动驳回命中禁投的国家</strong>，从而把合规要求落到系统里。</p>
+      <div class="callout info"><span class="ico">ℹ️</span><div><strong>合规属性：</strong>这是合规要求，<strong>全量生效</strong>，不做灰度、不做 A/B test。</div></div>
+      <h3>目标</h3>
+      <ul class="bul">
+        <li>审核三环节（单条详情页 / 批量审批弹窗 / 修改审核结果弹窗）均能<strong>展示禁投品类与禁投国家</strong>，禁投国家红色高亮。</li>
+        <li>切换「所属行业（品类）」后，禁投提示<strong>实时联动</strong>刷新。</li>
+        <li>审批「通过」时，命中禁投的（产品-国家）记录<strong>自动驳回</strong>，驳回原因自动写入「XX品类在XX国家禁投」；批量场景下未命中的行正常通过。</li>
+        <li>提供历史数据<strong>批量驳回</strong>工具：品类被新增进禁投配置后，可一键清理历史已通过的禁投国家。</li>
+      </ul>
+      <h3>影响方</h3>
+      <table class="tbl">
+        <tr><th>核心功能</th><th>影响方</th><th>影响点</th></tr>
+        <tr><td>品类-国家限制配置</td><td>运营</td><td>在 SSP 平台 Abram 配置中心维护「品类 → 禁投国家」映射</td></tr>
+        <tr><td>产品准入审核</td><td>本地化(LLC)、法务、RSA 审批人</td><td>命中禁投品类后，对应国家不可审核通过</td></tr>
+      </table>
+    </section>
+
+    <!-- ========== 总体流程 ========== -->
+    <section class="card anchor" id="flow">
+      <p class="sec-title">二、总体业务流程</p>
+      <div class="callout danger"><span class="ico">📌</span><div>
+        <strong>关键数据模型前提（贯穿全文）：miads 送审的每条产品记录只对应「一个国家」。</strong>已核对代码：miads 入站 DTO <code>MiadsInboundProductRequestVo.targetRegion</code> 是单个字符串；审批列表查询每行 <code>bp.target_country as country</code> 也是一个国家。因此——
+        <ul class="bul" style="margin:6px 0 0;">
+          <li><strong>单条审核 / 修改审核结果（需求一、三）：每个详情只有一个国家</strong>，命中判断退化为<strong>二元：命中禁投 or 不命中</strong>，不存在"部分国家命中"。无需国家高亮列表、无需"通过其余国家"。</li>
+          <li><strong>批量审批（需求二）：</strong>勾选多条，但<strong>每一行仍是一个产品 + 一个国家</strong>（见批量弹窗表格的 <code>countryName</code> 单数列）；多国家只在"多行"层面体现，不在单行内。</li>
+          <li>（注：详情页 <code>qualificationVos</code> 表按 <code>targetCountry.split(",")</code> 渲染，理论支持多国，但 miads 链路下实际恒为一条。）</li>
+        </ul>
+      </div></div>
+      <p>从运营配置禁投规则，到广告主送审、CRM 审核、结果回传 miads 的端到端链路如下：</p>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  A["运营<br/>SSP Abram 配置中心<br/>维护 品类→禁投国家"] -->|发布| B[("SSP Abram 配置<br/>(唯一数据源)")]
+  B -.CRM 直接读取.-> C
+  B -.miads 也读同一份.-> M["miads"]
+  D["广告主<br/>送审产品/广告组"] -->|talos/接口| E["miads 推送产品<br/>至 CRM"]
+  E --> C["CRM 产品准入审核<br/>(LLC→法务→RSA)"]
+  C -->|命中禁投: 国家级驳回<br/>未命中: 正常审核| F["回传审核结果<br/>(talos)"]
+  F --> G["miads 更新准入状态"]
+  style A fill:#fff3e0,stroke:#e6a23c
+  style B fill:#fff3e0,stroke:#e6a23c
+  style C fill:#ecf5ff,stroke:#3981ff
+  style F fill:#f0f9eb,stroke:#67c23a
+        </pre>
+        <div class="diagram-cap">图 2-1　产品准入禁投提示 端到端业务流程</div>
+      </div>
+
+      <h3>产品准入审核内部状态流（国家维度）</h3>
+      <p>每个产品按<strong>国家维度</strong>拆成多条审批记录（<code>b_product_approve_country</code>），审批通过/驳回是逐国家落库的：</p>
+      <div class="diagram">
+        <pre class="mermaid">
+stateDiagram-v2
+  [*] --> 审核中: 启动审批<br/>createProductApproveCountry()
+  审核中 --> 通过: 国家未命中禁投 且 审批通过<br/>approveProductApproveCountry()
+  审核中 --> 驳回: 命中禁投 或 审批人勾选驳回<br/>rejectProductApproveCountry()
+  通过 --> 驳回: 需求四 历史批量驳回<br/>rejectAllProductApproveCountry()
+  通过 --> [*]
+  驳回 --> [*]
+        </pre>
+        <div class="diagram-cap">图 2-2　产品-国家审批记录状态机（复用现有 ProductApproveCountryService）</div>
+      </div>
+    </section>
+
+    <!-- ========== 禁投配置 ========== -->
+    <section class="card anchor" id="config">
+      <p class="sec-title">三、禁投配置说明</p>
+      <table class="tbl">
+        <tr><th>项</th><th>说明</th></tr>
+        <tr><td>配置来源</td><td>SSP 平台 <strong>Abram 模块</strong> 配置中心，由运营创建「品类-国家限制规则」</td></tr>
+        <tr><td>数据源</td><td>SSP Abram 配置是<strong>唯一数据源</strong>。CRM <strong>直接读取 SSP 这份配置</strong>；miads 读取的也是同一份配置，<strong>CRM 不经 miads 中转</strong></td></tr>
+        <tr><td>规则格式</td><td>品类ID（<code>riskIndustryId</code>） → 禁止投放的国家/地区编码列表（如 <code>["CN","IN","BR"]</code>）</td></tr>
+        <tr><td>生效方式</td><td>配置发布后，CRM 实时读取，无需重启或同步任务</td></tr>
+        <tr><td>回滚</td><td>通过 Abram 配置中心回滚或修改后重新发布</td></tr>
+      </table>
+      <div class="callout danger"><span class="ico">🆕</span><div>
+        <strong>SSP 接入需新开发（CRM 此前从未对接过 SSP 平台）。</strong>需新增一套 SSP client，工作量包括：
+        <ul class="bul" style="margin:6px 0 0;">
+          <li><strong>新增 SSP API client</strong>：在 <code>xm-api</code> 模块下新建（如 <code>SspAbramApi</code>），参照现有 <code>BusinessAuditApi</code> / <code>MiAdsApi</code> 的接入范式（Feign/HTTP + 鉴权头）。</li>
+          <li><strong>新增配置项</strong>：各环境 <code>application-*.yml</code> 增加 SSP 的 <code>base_url</code> / <code>app_key</code>（或 token）等，向 SSP/运维申请鉴权凭证与各环境地址。</li>
+          <li><strong>封装统一 service 方法</strong> <code>getRestrictCountriesByIndustry(List&lt;riskIndustryId&gt;)</code>：返回每个品类的禁投国家编码，供所有禁投查询复用。</li>
+          <li><strong>缓存</strong>：建议加短期本地缓存（如 5min），降低审核页频繁查询对 SSP 的压力。</li>
+          <li><strong>容错</strong>：SSP 不可用时降级——返回空、隐藏禁投提示、记录日志，不阻断审核主流程。</li>
+        </ul>
+      </div></div>
+    </section>
+
+    <!-- ========== 数据结构 ========== -->
+    <section class="card anchor" id="data">
+      <p class="sec-title">四、数据结构与接口总览</p>
+      <h3>4.1 禁投信息：独立拉取（不进产品详情接口）</h3>
+      <div class="callout warn"><span class="ico">⚠️</span><div><strong>设计决策：禁投信息单独拉取，不塞进 <code>lookProductApprove</code>。</strong>产品信息由 miads 送审而来，本身<strong>不含禁投信息</strong>；禁投配置在 SSP Abram，是另一数据源。参照页面现有「商店审核结果」（<code>storeInfo</code> 侧边栏走独立接口 <code>/l/productApprove/storeInfo</code>、独立 loading、失败不阻断详情）的做法，禁投信息也<strong>独立拉取</strong>。<br>
+      ① <strong>解耦</strong>：SSP 慢/挂时详情页主体不受影响，禁投提示异步补上、失败仅隐藏；<br>
+      ② <strong>天然复用</strong>：审批人切换品类时本就要按新品类重查禁投，所以<strong>首屏展示与切换联动用同一个接口 <code>checkRestrict</code></strong>，无需 <code>lookProductApprove</code> 再冗余返回一份。</div></div>
+      <div class="json-box"><span class="c">// POST /l/product/checkRestrict  —— 首屏 + 切换品类 均调此接口（单产品=单国家）</span>
+<span class="c">// 入参</span>
+{ <span class="k">"riskIndustryId"</span>: <span class="n">1024</span>, <span class="k">"country"</span>: <span class="s">"CN"</span> }
+<span class="c">// 返回</span>
+{
+  <span class="k">"isHitRestrict"</span>: <span class="n">true</span>,             <span class="c">// 该品类在该国家是否禁投（二元）</span>
+  <span class="k">"hitRestrictIndustry"</span>: <span class="s">"赌博游戏"</span>,   <span class="c">// 命中禁投的品类名称</span>
+  <span class="k">"countryName"</span>: <span class="s">"中国"</span>            <span class="c">// 该国家中文名（用于提示文案）</span>
+}
+<span class="c">// 批量场景 POST /l/product/batchDetail 入参为多行，逐行判断：</span>
+<span class="c">// [{ "productId":1, "riskIndustryId":1024, "country":"CN" }, ...]</span></div>
+      <p class="callout info" style="display:block"><strong>判断口径：</strong>命中与否取<strong>审核人更正后的品类</strong> <code>correctedRiskIndustryId</code>；若未更正则取原始 <code>riskIndustryId</code>。因每条产品仅一个国家，命中是<strong>二元</strong>的（该品类在该国是否禁投）。前端调用时机：详情页 <code>getList()</code> 拿到产品后调一次（首屏），<code>handleIndustryChange</code> 切换品类后再调（联动）——与 <code>fetchStoreInfo</code> 同级的独立异步调用。</p>
+
+      <h3>4.2 接口变更总览</h3>
+      <table class="tbl">
+        <tr><th>关联需求</th><th>接口</th><th>方法</th><th>变更</th></tr>
+        <tr><td>需求一/二/三</td><td><code>/l/product/checkRestrict</code> <span class="badge be">新增</span></td><td>POST</td><td>入参 <code>{riskIndustryId, country}</code>（单国家），返回 <code>isHitRestrict</code>。<strong>详情页首屏 + 切换品类联动均调此接口</strong>（独立异步，类比 storeInfo）</td></tr>
+        <tr><td>需求一</td><td><code>/l/approve/update</code></td><td>POST</td><td>审批通过时，若命中则把该（唯一）国家并入 <code>rejectedCountries</code> 驳回</td></tr>
+        <tr><td>需求二</td><td><code>/l/product/batchDetail</code> <span class="badge be">新增</span></td><td>POST</td><td>入参为选中行 <code>[{productId, riskIndustryId, country}]</code>；<strong>逐行按各自品类</strong>判断，返回每行 <code>isHitRestrict</code></td></tr>
+        <tr><td>需求三</td><td><code>/l/product/change_review_result</code></td><td>POST</td><td>新增禁投检查，返回 <code>restrictCountries</code></td></tr>
+        <tr><td>需求四</td><td><code>/l/product/checkRestrictHistory</code> <span class="badge be">新增</span></td><td>GET</td><td>查询受影响的历史已通过产品</td></tr>
+        <tr><td>需求四</td><td><code>/l/product/batchRejectRestrict</code> <span class="badge be">新增</span></td><td>POST</td><td>执行批量驳回，复用 <code>rejectProductApproveCountry()</code></td></tr>
+      </table>
+      <div class="callout info"><span class="ico">ℹ️</span><div>上述所有禁投查询（<code>checkRestrict</code> / <code>batchDetail</code> / <code>change_review_result</code> / <code>checkRestrictHistory</code>）底层均统一调用 <code>getRestrictCountriesByIndustry()</code> <strong>直接读取 SSP Abram 配置</strong>，不经 miads。<strong>CRM 此前未对接过 SSP，需新开发 SSP 接入</strong>（详见第三节）。</div></div>
+    </section>
+
+    <!-- =================== 需求一 =================== -->
+    <section class="card anchor" id="req1">
+      <p class="sec-title">需求一 · CRM 产品审核详情页提示禁投品类和国家 <span class="badge p0">P0</span></p>
+      <p><strong>涉及页面：</strong><code>/approveManagement/productDetail.vue</code></p>
+      <p><strong>场景说明：</strong>单条产品审核详情页，该产品只对应一个目标国家。页面顶部「产品信息」区的「所属行业」为只读字段；审批人在页面下方独立的「LLC 行业更正」区切换品类（仅 LLC/法务角色可见）。禁投命中判断按「当前生效品类（更正后 ?? 原始）」+ 该国家进行，二元命中。</p>
+      <p><strong>本需求覆盖两种命中情况，分别对应下方两个原型：</strong></p>
+      <ul class="bul">
+        <li><strong>情况一：进页面即命中</strong> —— 提交的原始品类在该国家就是禁投的（不依赖更正动作就要提示）；</li>
+        <li><strong>情况二：审批人更正后命中</strong> —— 原始品类不禁投或品类被更正为禁投品类，提示在 LLC 更正区下方实时刷新。</li>
+      </ul>
+
+      <h3>需求逻辑</h3>
+      <table class="tbl">
+        <tr><th>场景</th><th>触发条件</th><th>页面表现</th></tr>
+        <tr><td>A. 原始品类即命中</td><td>进页面，原始 <code>riskIndustryId</code> + 该国家命中禁投</td><td>「所属行业」下方红色提示；目标国家字段红色高亮；「通过」按钮拦截</td></tr>
+        <tr><td>B. 更正后命中</td><td>LLC 在更正区选新行业后命中</td><td>更正区下方红色提示；目标国家字段红色高亮</td></tr>
+        <tr><td>C. 更正后未命中</td><td>原始命中、更正为不禁投的行业</td><td>隐藏禁投提示，目标国家恢复常态</td></tr>
+        <tr><td>D. 原始与更正均未命中</td><td>当前生效品类在该国家不禁投</td><td>不显示禁投提示</td></tr>
+      </table>
+
+      <h3>原型 1 · 情况一：提交的品类即禁投</h3>
+      <p style="color:var(--text-2);font-size:13px;">进页面按原始品类判断已命中，「所属行业」下方红色提示；目标国家字段输入框边框与文字标红。</p>
+      <div class="proto">
+        <div class="proto-bar">
+          <span class="proto-dot" style="background:#fc625d"></span>
+          <span class="proto-dot" style="background:#fdbc40"></span>
+          <span class="proto-dot" style="background:#35cd4b"></span>
+          <span>产品审核详情（情况一）— productDetail.vue</span>
+        </div>
+        <div class="proto-body">
+          <div class="eu-header"><span class="h">产品准入审批</span><button class="eu-btn default">返回</button></div>
+
+          <p class="title" style="font-size:14px;color:#333;margin:6px 0 12px;"><span style="display:inline-block;width:4px;height:14px;background:#3981ff;border-radius:3px;margin-right:8px;vertical-align:-2px;"></span>客户信息</p>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">客户类型</span><div class="eu-input disabled">代理商</div></div>
+            <div class="eu-item"><span class="eu-label">客户名称</span><div class="eu-input disabled">SMARTCONNECT HK LIMITED</div></div>
+          </div>
+
+          <p class="title" style="font-size:14px;color:#333;margin:18px 0 12px;"><span style="display:inline-block;width:4px;height:14px;background:#3981ff;border-radius:3px;margin-right:8px;vertical-align:-2px;"></span>产品信息</p>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">产品类型</span><div class="eu-input disabled">APP</div></div>
+            <div class="eu-item"><span class="eu-label">所属行业</span><div class="eu-input disabled">赌博游戏 - Gambling</div></div>
+          </div>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">真实品类</span><div class="eu-input disabled">—</div></div>
+            <div class="eu-item"><span class="eu-label">风险等级</span><div class="eu-input disabled">高风险</div></div>
+          </div>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">包名</span><div class="eu-input disabled">com.mfty.scrrr.mi</div></div>
+            <div class="eu-item"><span class="eu-label">应用名称</span><div class="eu-input disabled">Turbo Stunt: 3D Speed Rush</div></div>
+          </div>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">开发者名称</span><div class="eu-input disabled">STARTOONS</div></div>
+            <div class="eu-item">
+              <span class="eu-label">目标国家/地区</span>
+              <div class="eu-input disabled" style="border-color:var(--danger);color:var(--danger);background:#fef0f0;">⛔ 法国</div>
+            </div>
+          </div>
+
+          <!-- 禁投提示：产品信息卡下方 -->
+          <div class="callout danger" style="max-width:660px;">
+            <span class="ico">⛔</span>
+            <div>
+              <strong>提交的品类（赌博游戏）在本产品目标国家 法国 禁投。</strong><br>
+              <span style="color:#cf6d6d">提交「通过」将被拦截 / 自动驳回，驳回原因：赌博游戏在法国禁投。</span>
+            </div>
+          </div>
+
+          <!-- LLC 行业更正区 -->
+          <p class="title" style="font-size:14px;color:#333;margin:18px 0 12px;"><span style="display:inline-block;width:4px;height:14px;background:#3981ff;border-radius:3px;margin-right:8px;vertical-align:-2px;"></span>LLC 行业更正<span style="font-weight:400;font-size:12px;color:#909399;margin-left:8px;">（仅 LLC/法务角色可操作）</span></p>
+          <div class="eu-item">
+            <span class="eu-label">更正风险行业</span>
+            <div class="eu-select" style="width:300px;">赌博游戏 - Gambling（原行业）<span class="caret">▾</span></div>
+            <span class="risk-tag high" style="margin-left:10px;">高风险</span>
+          </div>
+
+          <div class="eu-btns">
+            <button class="eu-btn danger">驳回</button>
+            <button class="eu-btn" disabled style="opacity:.55;">通过（命中禁投，已禁用）</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>原型 2 · 情况二：LLC 更正后命中禁投</h3>
+      <p style="color:var(--text-2);font-size:13px;">原始品类不禁投，但 LLC 在更正区切换为禁投品类后实时命中；提示在更正区下方刷新，目标国家字段红色高亮。</p>
+      <div class="proto">
+        <div class="proto-bar">
+          <span class="proto-dot" style="background:#fc625d"></span>
+          <span class="proto-dot" style="background:#fdbc40"></span>
+          <span class="proto-dot" style="background:#35cd4b"></span>
+          <span>产品审核详情（情况二）— productDetail.vue</span>
+        </div>
+        <div class="proto-body">
+          <div class="eu-header"><span class="h">产品准入审批</span><button class="eu-btn default">返回</button></div>
+
+          <p class="title" style="font-size:14px;color:#333;margin:6px 0 12px;"><span style="display:inline-block;width:4px;height:14px;background:#3981ff;border-radius:3px;margin-right:8px;vertical-align:-2px;"></span>产品信息</p>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">产品类型</span><div class="eu-input disabled">APP</div></div>
+            <div class="eu-item"><span class="eu-label">所属行业</span><div class="eu-input disabled">游戏 - Game</div></div>
+          </div>
+          <div class="form-row">
+            <div class="eu-item"><span class="eu-label">真实品类</span><div class="eu-input disabled">—</div></div>
+            <div class="eu-item"><span class="eu-label">风险等级</span><div class="eu-input disabled">低风险</div></div>
+          </div>
+          <div class="form-row">
+            <div class="eu-item">
+              <span class="eu-label">目标国家/地区</span>
+              <div class="eu-input disabled" style="border-color:var(--danger);color:var(--danger);background:#fef0f0;">⛔ 法国</div>
+            </div>
+          </div>
+
+          <!-- LLC 行业更正区 -->
+          <p class="title" style="font-size:14px;color:#333;margin:18px 0 12px;"><span style="display:inline-block;width:4px;height:14px;background:#3981ff;border-radius:3px;margin-right:8px;vertical-align:-2px;"></span>LLC 行业更正<span style="font-weight:400;font-size:12px;color:#909399;margin-left:8px;">（仅 LLC/法务角色可操作）</span></p>
+          <div class="eu-item">
+            <span class="eu-label">更正风险行业</span>
+            <div class="eu-select" style="width:300px;border-color:var(--danger);">赌博游戏 - Gambling（已更正）<span class="caret">▾</span></div>
+            <span class="risk-tag high" style="margin-left:10px;">高风险</span>
+          </div>
+
+          <!-- 禁投提示：LLC 更正区下方 -->
+          <div class="callout danger" style="max-width:660px;">
+            <span class="ico">⛔</span>
+            <div>
+              <strong>更正后品类（赌博游戏）在本产品目标国家 法国 禁投。</strong><br>
+              <span style="color:#cf6d6d">提交「通过」将被拦截 / 自动驳回，驳回原因：赌博游戏在法国禁投。</span>
+            </div>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label">驳回原因</span>
+            <textarea class="eu-textarea" readonly>赌博游戏在法国禁投</textarea>
+          </div>
+
+          <div class="eu-btns">
+            <button class="eu-btn danger">驳回</button>
+            <button class="eu-btn" disabled style="opacity:.55;">通过（命中禁投，已禁用）</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>交互逻辑</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+  S(["进入详情页"]) --> P0["按【原始品类】+ 该国家<br/>调 checkRestrict"]
+  P0 --> M0{原始品类即禁投?}
+  M0 -- 是·情况一 --> R0["所属行业下方红色提示<br/>目标国家字段标红 ⛔"]
+  M0 -- 否 --> N0["不提示"]
+  R0 --> C["LLC 在更正区切换品类?"]
+  N0 --> C
+  C -- 切换 --> P1["按【更正后品类】+ 该国家<br/>重新 checkRestrict"]
+  P1 --> M1{更正后禁投?}
+  M1 -- 是·情况二 --> R1["更正区下方红色提示<br/>目标国家字段标红 ⛔"]
+  M1 -- 否 --> N1["隐藏提示(解禁)"]
+  C -- 不切换 --> KEEP["维持原始判断结果"]
+  R1 --> Z(["通过 → 该国家自动驳回"])
+  R0 --> Z
+  N1 --> Z2(["通过 → 该国家通过"])
+  style R0 fill:#fef0f0,stroke:#f56c6c
+  style R1 fill:#fef0f0,stroke:#f56c6c
+        </pre>
+        <div class="diagram-cap">图 1-1　详情页禁投提示交互（情况一首判 / 情况二复判）</div>
+      </div>
+      <ol class="flow">
+        <li>进页面即按提交的原始品类 + 该国家判断；命中则在「所属行业」下方红色提示，目标国家输入框边框与文字标红（情况一）。</li>
+        <li>LLC/法务在独立的更正区切换品类后，按更正后品类实时复判：命中则在更正区下方刷新提示，目标国家保持/恢复标红（情况二）；未命中则隐藏提示。</li>
+        <li>「通过」按当前生效品类（更正后 ?? 原始）判断；命中则按钮禁用 / 拦截，提交时自动驳回该国家，原因写入「XX品类在XX国家禁投」。</li>
+        <li>「驳回」可随时点击，原因以审批人填写的为准。</li>
+      </ol>
+
+      <h3>后端落地要点</h3>
+      <ul class="bul">
+        <li>不改 <code>lookProductApprove</code> 返回结构；新增独立接口 <code>POST /l/product/checkRestrict</code>，按 <code>correctedRiskIndustryId ?? riskIndustryId</code> + 产品的单个国家调 SSP。</li>
+        <li>前端 <code>productDetail.vue</code> 在 <code>getList()</code> 后首调 <code>checkRestrict</code>（情况一首屏判断），<code>handleIndustryChange</code> 切换品类后再调（情况二联动）；独立 loading + <code>.catch</code> 容错。</li>
+        <li><code>approveFlow</code> 在通过分支若命中则把该国家并入 <code>rejectedCountries</code>，调 <code>rejectProductApproveCountry(productId, countries)</code> 完成驳回。</li>
+      </ul>
+    </section>
+
+    <!-- =================== 需求二 =================== -->
+    <section class="card anchor" id="req2">
+      <p class="sec-title">需求二 · CRM 批量审批详情页提示禁投品类和国家 <span class="badge p0">P0</span></p>
+      <p><strong>涉及页面：</strong><code>/approveManagement/components/batchProductApproveDialog.vue</code></p>
+      <p><strong>场景说明：</strong>批量审批勾选多条产品，每一行是「一个产品 + 一个国家」。每个产品的品类可能不同，禁投判断逐行按各自品类进行。顶部「所属行业更正」可对所有选中行批量改判；若有行命中禁投，提示位于「所属行业更正」下方，命中行表格内标红。</p>
+
+      <h3>需求逻辑</h3>
+      <table class="tbl">
+        <tr><th>场景</th><th>触发条件</th><th>页面表现</th></tr>
+        <tr><td>A. 已选含禁投行</td><td>某行（产品+国家）按其品类命中禁投</td><td>已选记录上方汇总提示，该行标红 ⛔</td></tr>
+        <tr><td>B. 批量更正行业后命中</td><td>顶部选了统一行业，按新行业重判后有行命中</td><td>实时重算，更新提示与标红行</td></tr>
+        <tr><td>C. 批量通过 + 有禁投行</td><td>选择「通过」</td><td>命中行自动驳回（原因「XX品类在XX国禁投」），其余行通过</td></tr>
+        <tr><td>D. 批量驳回</td><td>选择「驳回」</td><td>所有选中行驳回，原因以填写为准</td></tr>
+        <tr><td>E. 无禁投行</td><td>无任何行命中</td><td>正常审核，无额外提示</td></tr>
+      </table>
+
+      <h3>页面原型</h3>
+      <div class="try-hint">👉 切换「操作类型」通过/驳回，观察提示文案与提交逻辑说明的变化（注意：每行=一个产品一个国家，不同产品品类不同）</div>
+      <div class="proto">
+        <div class="proto-bar">
+          <span class="proto-dot" style="background:#fc625d"></span>
+          <span class="proto-dot" style="background:#fdbc40"></span>
+          <span class="proto-dot" style="background:#35cd4b"></span>
+          <span>批量审批弹窗 — batchProductApproveDialog.vue</span>
+        </div>
+        <div class="proto-body">
+          <div class="eu-header"><span class="h">批量产品审核</span></div>
+
+          <div class="eu-item">
+            <span class="eu-label"><span class="req">*</span>操作类型</span>
+            <span class="eu-radio on" id="r2-radio-pass" onclick="r2set('approve')"><i></i>通过</span>
+            <span class="eu-radio" id="r2-radio-rej" onclick="r2set('reject')"><i></i>驳回</span>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label">所属行业更正<span style="font-weight:400;font-size:12px;color:#909399;">（可选 — 选中后所有选中产品按此行业重判禁投）</span></span>
+            <select class="eu-select" style="width:100%;">
+              <option>选择风险行业（不选则各产品按自身品类）</option>
+              <option>游戏 - Game　　　　低风险</option>
+              <option>电商 - E-commerce　　　　低风险</option>
+            </select>
+            <!-- 历史审批行业提示，沿用现网样式 -->
+            <div style="margin-top:8px;">
+              <span class="badge p1" style="background:#fdf6ec;color:#b88230;border:1px solid #f5dab1;">⚠ 该包/H5历史审批行业 (com.oakever.arrows)：游戏</span>
+            </div>
+          </div>
+
+          <!-- 禁投提示：位于「所属行业更正」下方 -->
+          <div class="callout danger" style="max-width:720px;">
+            <span class="ico">⛔</span>
+            <div>
+              <strong>以下记录（按各自品类判断）命中禁投，<span id="r2-action-tip">提交后将自动驳回</span>：</strong>
+              <ul class="bul" style="margin:6px 0 0;">
+                <li>AA00118381（品类：游戏）目标国 <span class="ctag forbid" style="padding:1px 8px">澳大利亚</span> 禁投</li>
+                <li>AA00118372（品类：游戏）目标国 <span class="ctag forbid" style="padding:1px 8px">葡萄牙</span> 禁投</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label">通过/驳回原因</span>
+            <textarea class="eu-textarea" placeholder="请输入通过/驳回原因" style="min-height:54px;"></textarea>
+            <div style="text-align:right;font-size:12px;color:#909399;">0/500</div>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label">已选记录　<span class="badge" style="background:#f4f4f5;color:#909399;border:1px solid #e9e9eb;">已选 10 条记录</span>　<span style="font-weight:400;font-size:12px;color:#909399;">（每行 = 一个产品 + 一个国家）</span></span>
+            <table class="eu-table">
+              <tr><th>产品ID</th><th>包名</th><th>国家</th><th>上架状态</th><th>提审人</th><th>行业</th><th>禁投</th></tr>
+              <tr style="background:#fef0f0;"><td>AA00118381</td><td>com.oakever.arrows</td><td><span class="ctag forbid" style="margin:0">澳大利亚</span></td><td>GA/GP在架</td><td>12696</td><td>游戏</td><td><span class="pill rej">命中</span></td></tr>
+              <tr><td>AA00118382</td><td>com.oakever.arrows</td><td>委内瑞拉</td><td>GA/GP在架</td><td>12696</td><td>游戏</td><td>—</td></tr>
+              <tr><td>AA00118380</td><td>com.oakever.arrows</td><td>英国</td><td>GA/GP在架</td><td>12696</td><td>游戏</td><td>—</td></tr>
+              <tr style="background:#fef0f0;"><td>AA00118372</td><td>com.oakever.arrows</td><td><span class="ctag forbid" style="margin:0">葡萄牙</span></td><td>GA/GP在架</td><td>12696</td><td>游戏</td><td><span class="pill rej">命中</span></td></tr>
+            </table>
+          </div>
+
+          <div class="callout info" id="r2-submit-tip" style="max-width:720px;"><span class="ico">🔎</span><div>提交后：<strong>命中禁投的记录自动驳回</strong>（原因「XX品类在XX国禁投」），未命中的记录正常通过。</div></div>
+
+          <div class="eu-btns">
+            <button class="eu-btn default">取消</button>
+            <button class="eu-btn">提交</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>交互逻辑</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+  O(["打开批量审批弹窗"]) --> B["调用 /l/product/batchDetail<br/>入参: 选中行的 [productId, riskIndustryId, country]"]
+  B --> J["逐行: 按该行品类+国家查 SSP<br/>(不同产品品类不同, 规则各异)"]
+  J --> C{有行命中禁投?}
+  C -- 否 --> N["无额外提示, 正常批量审核"]
+  C -- 是 --> P["上方汇总命中行<br/>表格内命中行标红 ⛔"]
+  P --> U{顶部选了批量更正行业?}
+  U -- 是 --> RC["所有行改用新行业重判"] --> T
+  U -- 否 --> T{操作类型}
+  T -- 通过 --> PA["逐行提交: 命中行驳回<br/>未命中行通过"]
+  T -- 驳回 --> RJ["逐行提交: 全部驳回<br/>原因以填写为准"]
+  style P fill:#fef0f0,stroke:#f56c6c
+  style PA fill:#f0f9eb,stroke:#67c23a
+  style RJ fill:#fef0f0,stroke:#f56c6c
+        </pre>
+        <div class="diagram-cap">图 2-3　批量审批禁投提示交互流程（逐行按各自品类判断）</div>
+      </div>
+      <ol class="flow">
+        <li><strong>逐行判断：</strong>每行是「一个产品 + 一个国家」，按<strong>该行自己的品类</strong>查 SSP 禁投——不同产品品类不同，规则各异，不可统一判断。</li>
+        <li><strong>禁投汇总提示：</strong>位于操作类型下方，列出所有命中禁投的行（产品 + 该国家）。</li>
+        <li><strong>已选记录表格：</strong>命中行整行标红 + 「命中」标签；未命中行常态显示。</li>
+        <li><strong>批量更正行业（可选）：</strong>顶部选统一行业后，所有选中行改用该行业重新判断命中并刷新；不选则各自沿用 <code>correctedRiskIndustryId ?? riskIndustryId</code>。</li>
+        <li><strong>历史审核品类提示：</strong>保留现有 <code>historyRiskIndustryList</code> 展示，仅作辅助参考，<strong>不参与</strong>禁投命中计算。</li>
+        <li><strong>批量通过：</strong>命中行自动驳回（原因「XX品类在XX国禁投」），未命中行通过。<strong>批量驳回：</strong>全部驳回，原因以填写为准。</li>
+      </ol>
+      <div class="callout info" style="display:block"><strong>实现说明：</strong>现有批量审批是前端循环逐条调 <code>approveUpdate</code>（见 <code>processBatchApprove</code>）。本期保持该模式：<code>batchDetail</code> 一次性返回每行的品类与命中结果用于展示；提交时由后端在单条 <code>update</code> 内按该产品当前生效品类完成禁投命中行的自动驳回（前端把命中国家随参数带上，或后端按 productId 重新计算）。</div>
+    </section>
+
+    <!-- =================== 需求三 =================== -->
+    <section class="card anchor" id="req3">
+      <p class="sec-title">需求三 · 产品管理列表 修改审核结果时提示禁投 <span class="badge p1">P1</span></p>
+      <p><strong>涉及页面：</strong>产品管理列表 →「修改审批结果」弹窗（后端 <code>change_review_result</code>）</p>
+      <p><strong>场景说明：</strong>审批人在产品管理列表点开「修改审批结果」弹窗。弹窗顶部产品信息卡需展示目标国家（命中禁投时红色高亮）；审批风险行业默认"不修改保持现有"，即便不修改也按现有品类 + 国家判断，修改后按更正品类实时复判。命中时在审批风险行业下方红色提示，并对「确认提交」按钮拦截。</p>
+
+      <h3>需求逻辑</h3>
+      <table class="tbl">
+        <tr><th>场景</th><th>触发条件</th><th>页面表现</th></tr>
+        <tr><td>A. 现有行业即命中（不修改）</td><td>"不修改保持现有"，现有品类在该国禁投</td><td>产品信息卡的目标国家标红；审批风险行业下方红色禁投提示</td></tr>
+        <tr><td>B. 更改行业后命中</td><td>修改审批风险行业后命中</td><td>同上，提示与目标国家高亮实时刷新</td></tr>
+        <tr><td>C. 更改行业后未命中</td><td>修改后不在禁投配置中</td><td>隐藏提示，目标国家恢复常态</td></tr>
+      </table>
+
+      <h3>页面原型</h3>
+      <div class="proto">
+        <div class="proto-bar">
+          <span class="proto-dot" style="background:#fc625d"></span>
+          <span class="proto-dot" style="background:#fdbc40"></span>
+          <span class="proto-dot" style="background:#35cd4b"></span>
+          <span>修改审批结果弹窗</span>
+        </div>
+        <div class="proto-body">
+          <div class="eu-header"><span class="h">修改审批结果</span></div>
+
+          <!-- 产品信息卡片：新增「目标国家」字段，命中时整段标红 -->
+          <div style="background:#ecf5ff;border:1px solid #d9ecff;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#5a6b8c;max-width:680px;">
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 30px;">
+              <span>产品：<strong style="color:#333;">italiananimalsplaygroundinfe...</strong></span>
+              <span>包名/域名：com.newbee.italiananim...</span>
+              <span>审批状态：<span style="color:#67c23a;">通过</span></span>
+              <span>Review ID：c9814fc2-3c5d-42e2-...</span>
+              <span style="color:var(--danger);font-weight:600;">⛔ 目标国家：中国香港（禁投）</span>
+            </div>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label"><span class="req">*</span>审批结果</span>
+            <button class="eu-btn" style="height:32px;padding:0 16px;">通过</button>
+            <button class="eu-btn default" style="height:32px;padding:0 16px;margin-left:8px;">拒绝</button>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label">审批风险行业</span>
+            <select class="eu-select" id="r3-industry" onchange="r3update()" style="width:320px;">
+              <option value="keep">不修改（保持现有：赌博游戏）</option>
+              <option value="lottery">博彩 - Lottery</option>
+              <option value="ecom">电商 - E-commerce</option>
+              <option value="tool">工具 - Tools</option>
+            </select>
+            <p style="font-size:12px;color:#909399;margin:6px 0 0;">修改后系统将重新触发 Talos 回调，通知 miads 更新风险行业分类。</p>
+          </div>
+
+          <!-- 禁投提示：审批风险行业下方 -->
+          <div id="r3-warn" class="callout danger" style="max-width:680px;">
+            <span class="ico">⛔</span>
+            <div>
+              <strong>当前生效品类 <span id="r3-hitname">赌博游戏</span> 在本产品目标国家 <span id="r3-forbidlist">中国香港</span> 禁投。</strong><br>
+              <span style="color:#cf6d6d">确认后该国家的审核状态将被驳回，驳回原因：<span id="r3-reasonpreview">赌博游戏在中国香港禁投</span>。</span>
+            </div>
+          </div>
+
+          <div class="eu-item">
+            <span class="eu-label">备注</span>
+            <textarea class="eu-textarea" placeholder="可填写备注信息…" style="min-height:54px;"></textarea>
+          </div>
+          <div class="eu-item">
+            <span class="eu-label">产品审批附件</span>
+            <button class="eu-btn" style="height:30px;padding:0 14px;">上传附件</button>
+            <p style="font-size:12px;color:#909399;margin:6px 0 0;">支持 pdf/excel/png/jpg/jpeg 格式，最多上传5个附件，大小不超过20MB</p>
+          </div>
+
+          <div class="eu-btns">
+            <button class="eu-btn default">取消</button>
+            <button class="eu-btn">确认提交</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>交互逻辑</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart LR
+  A(["选择审批风险行业<br/>(默认: 不修改保持现有)"]) --> J{是否修改行业?}
+  J -- 不修改 --> K["按现有品类 + 国家判断"]
+  J -- 修改 --> B["按更正后品类 + 国家<br/>调 checkRestrict"]
+  K --> C{命中禁投?}
+  B --> C
+  C -- 是 --> D["展示禁投提示<br/>目标国家红色高亮 ⛔"]
+  C -- 否 --> E["隐藏禁投提示"]
+  D --> F(["确认 → change_review_result<br/>命中国家驳回 + 触发 Talos 回调"])
+  E --> F
+  style D fill:#fef0f0,stroke:#f56c6c
+        </pre>
+        <div class="diagram-cap">图 3-1　修改审批结果禁投提示交互流程</div>
+      </div>
+      <ul class="bul">
+        <li>产品信息卡新增「目标国家」字段，命中禁投时整段标红，让审批人在弹窗顶部就能看到目标国家信息与风险状态。</li>
+        <li>禁投提示位于审批风险行业下方；默认"不修改保持现有"也要按现有品类 + 国家判断，修改后按更正品类实时复判。</li>
+        <li>后端 <code>change_review_result</code>（<code>ProductController</code>）在更新风险行业前后增加禁投检查并返回命中信息；修改行业会重新触发 Talos 回调通知 miads；权限沿用现有 <code>LLC / SYSTEM_ADMIN_ALL</code> 校验。</li>
+      </ul>
+    </section>
+
+    <!-- =================== 需求四 =================== -->
+    <section class="card anchor" id="req4">
+      <p class="sec-title">需求四 · 历史已审批品类 对禁投国家批量驳回 <span class="badge p1">P1</span> <span class="badge" style="background:#f4f4f5;color:#909399;border:1px solid #e9e9eb;">方案待定</span></p>
+      <div class="callout info"><span class="ico">🕐</span><div><strong>状态：本期是否落地待定。</strong>「历史已审核的限制国家是否需要刷数据」尚待业务确认（见 FAQ Q3）。本节<strong>先把完整方案设计好</strong>，确认后即可直接进入开发；不影响需求一/二/三的交付。</div></div>
+      <p><strong>触发方式：</strong>手动触发（运营 / 系统管理员发起）。</p>
+      <p><strong>场景说明：</strong>历史已审批通过的产品，其品类后来被加入禁投配置，需要批量驳回这些产品命中禁投的国家。</p>
+
+      <h3>需求逻辑</h3>
+      <table class="tbl">
+        <tr><th>步骤</th><th>操作</th><th>说明</th></tr>
+        <tr><td>1. 查询受影响产品</td><td>系统查询</td><td>查所有已审批通过 且品类在禁投配置中的产品</td></tr>
+        <tr><td>2. 匹配禁投国家</td><td>系统匹配</td><td>对每个产品，匹配目标国家与禁投国家列表</td></tr>
+        <tr><td>3. 生成驳回记录</td><td>系统生成</td><td>对命中国家生成驳回记录，原因「XX品类在XX国家禁投」</td></tr>
+        <tr><td>4. 确认执行</td><td>人工确认</td><td>展示受影响产品列表，运营勾选确认后执行</td></tr>
+        <tr><td>5. 执行驳回</td><td>系统执行</td><td>复用驳回接口，更新产品-国家状态</td></tr>
+      </table>
+
+      <h3>页面原型</h3>
+      <div class="try-hint">👉 勾选「我已确认」后，「执行驳回」按钮才可用</div>
+      <div class="proto">
+        <div class="proto-bar">
+          <span class="proto-dot" style="background:#fc625d"></span>
+          <span class="proto-dot" style="background:#fdbc40"></span>
+          <span class="proto-dot" style="background:#35cd4b"></span>
+          <span>历史产品批量驳回</span>
+        </div>
+        <div class="proto-body">
+          <div class="eu-header"><span class="h">历史产品批量驳回</span></div>
+          <div class="callout danger" style="max-width:680px;"><span class="ico">⚠️</span><div>以下产品因品类禁投配置变更，需要批量驳回禁投国家。请核对后执行。</div></div>
+
+          <div class="kpi">
+            <div class="box"><div class="t">受影响产品</div><div class="v">15 条</div></div>
+            <div class="box"><div class="t">命中禁投国家（去重）</div><div class="v">3 个</div></div>
+            <div class="box"><div class="t">将生成驳回记录</div><div class="v">21 条</div></div>
+          </div>
+
+          <table class="eu-table">
+            <tr><th style="width:36px">选</th><th>产品</th><th>品类</th><th>命中禁投国家</th><th>审批通过时间</th></tr>
+            <tr><td>☑</td><td>产品A</td><td>赌博游戏</td><td><span class="ctag forbid">CN</span><span class="ctag forbid">IN</span></td><td>2026-03-15</td></tr>
+            <tr><td>☑</td><td>产品B</td><td>博彩</td><td><span class="ctag forbid">BR</span></td><td>2026-04-01</td></tr>
+            <tr><td>☑</td><td>产品C</td><td>赌博游戏</td><td><span class="ctag forbid">CN</span></td><td>2026-02-20</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:#909399">… 共 15 条</td></tr>
+          </table>
+
+          <div class="eu-item" style="margin-top:14px;">
+            <span class="eu-label">驳回原因（系统自动填写，可修改）</span>
+            <textarea class="eu-textarea">赌博游戏在CN国家禁投</textarea>
+          </div>
+          <div class="eu-item">
+            <label style="font-size:13px;color:var(--text-2);cursor:pointer;">
+              <input type="checkbox" id="r4-confirm" onchange="r4toggle()"> 我已确认，执行批量驳回
+            </label>
+          </div>
+          <div class="eu-btns">
+            <button class="eu-btn default">取消</button>
+            <button class="eu-btn danger" id="r4-btn" disabled>执行驳回</button>
+          </div>
+        </div>
+      </div>
+
+      <h3>交互逻辑</h3>
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+  S(["运营手动发起"]) --> Q["GET /l/product/checkRestrictHistory<br/>查已通过 且 品类在禁投配置的产品"]
+  Q --> M["按 correctedRiskIndustryId ?? riskIndustryId<br/>匹配每个产品的禁投命中国家"]
+  M --> L["展示受影响产品列表<br/>+ 自动生成驳回原因"]
+  L --> C{运营勾选确认?}
+  C -- 否 --> X["按钮置灰, 不可执行"]
+  C -- 是 --> E["POST /l/product/batchRejectRestrict<br/>productIds + reason"]
+  E --> R["逐产品 rejectProductApproveCountry(productId, 命中国家)<br/>更新产品/国家状态 + 回传 miads"]
+  R --> D(["完成: 返回成功/失败统计"])
+  style L fill:#fdf6ec,stroke:#e6a23c
+  style R fill:#fef0f0,stroke:#f56c6c
+        </pre>
+        <div class="diagram-cap">图 4-1　历史产品批量驳回交互流程</div>
+      </div>
+      <ol class="flow">
+        <li><strong>命中判断口径：</strong>用 <code>correctedRiskIndustryId</code>（更正后行业）判断，未更正则用原始 <code>riskIndustryId</code>。</li>
+        <li><strong>驳回维度：</strong>按产品维度，每个产品的禁投国家单独驳回（非整产品驳回）。</li>
+        <li><strong>驳回原因：</strong>默认自动生成「XX品类在XX国家禁投」，运营可修改。</li>
+        <li><strong>执行方式：</strong>复用现有 <code>ProductApproveCountryService.rejectProductApproveCountry(productId, countries)</code>，逐产品传入命中国家。</li>
+        <li><strong>幂等：</strong>已是驳回状态的国家记录跳过，重复执行不产生副作用。</li>
+      </ol>
+    </section>
+
+    <!-- ========== 边界 ========== -->
+    <section class="card anchor" id="edge">
+      <p class="sec-title">五、边界与异常处理</p>
+      <table class="tbl">
+        <tr><th>情形</th><th>处理</th></tr>
+        <tr><td>读取禁投配置接口超时/失败</td><td>不阻断审核页加载；隐藏禁投提示并记录日志（查询失败不影响展示，与现有 <code>getHistoryRiskIndustryInfo</code> 容错一致）</td></tr>
+        <tr><td>产品无目标国家 / 国家为空</td><td>不展示禁投提示（理论上 miads 送审必带一个国家）</td></tr>
+        <tr><td>品类未命中（单国家）</td><td>不显示禁投提示，正常通过——单国家场景无"部分命中"中间态</td></tr>
+        <tr><td>二级品类</td><td>命中判断按实际选中的品类ID查询配置（兼容三期二级品类结构 <code>parent_id</code>）</td></tr>
+        <tr><td>批量：选中行品类各异</td><td><strong>逐行用各自品类</strong>判断禁投，命中行单独驳回，互不影响；提交时逐条处理，单行失败不阻断其他行</td></tr>
+        <tr><td>批量：顶部更正了统一行业</td><td>所有选中行改用新行业重新判断命中后再提交</td></tr>
+        <tr><td>历史审核品类提示</td><td>仅辅助参考，<strong>不参与</strong>禁投命中计算（命中以当前生效品类为准）</td></tr>
+        <tr><td>编辑已送审数据</td><td>已提交的限制国家正常展示，保存时不校验已提交的，仅校验新增的限制国家</td></tr>
+      </table>
+    </section>
+
+    <!-- ========== FAQ ========== -->
+    <section class="card anchor" id="faq">
+      <p class="sec-title">六、FAQ</p>
+      <h4>Q1：品类限制国家配置在哪里？</h4>
+      <p>在 SSP 平台 Abram 模块配置中心创建「品类-国家限制规则」。</p>
+      <h4>Q2：配置如何生效？</h4>
+      <p>配置发布后，CRM 实时读取生效（建议加短期缓存）。</p>
+      <h4>Q3：已审核的限制国家如何处理？</h4>
+      <p><strong>是否刷历史数据待业务确认。</strong>方案已在「需求四 · 历史产品批量驳回」中完整设计（手动触发工具），确认后即可落地。</p>
+      <h4>Q4：配置错误怎么办？</h4>
+      <p>通过 Abram 配置中心回滚，或修改后重新发布。</p>
+    </section>
+
+    <div class="footer">CRM 侧需求文档 · 产品审核支持禁投国家提示 · 原型为静态高保真示意，最终以开发实现为准</div>
+  </main>
+</div>
+
+<script>
+  // ---- mermaid 初始化 ----
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart:{ htmlLabels:true, curve:'basis' } });
+
+  // ---- 禁投品类配置（仅用于原型演示）----
+  const RESTRICT = {
+    keep:    { name:'赌博游戏', countries:['CN','IN','BR','FR','HK'] },
+    lottery: { name:'博彩',     countries:['BR'] },
+    ecom:    { name:'电商',     countries:[] },
+    tool:    { name:'工具',     countries:[] }
+  };
+  const CNAME = { CN:'中国', IN:'印度', BR:'巴西', US:'美国', JP:'日本', FR:'法国', HK:'中国香港' };
+  const R3_COUNTRY = 'HK';
+
+  // 需求二:操作类型切换
+  function r2set(type){
+    document.getElementById('r2-radio-pass').className = 'eu-radio' + (type==='approve'?' on':'');
+    document.getElementById('r2-radio-rej').className  = 'eu-radio' + (type==='reject'?' on':'');
+    const tip = document.getElementById('r2-action-tip');
+    const sub = document.getElementById('r2-submit-tip').querySelector('div');
+    if(type==='approve'){
+      tip.textContent = '提交后将自动驳回';
+      sub.innerHTML = '提交后：<strong>命中禁投的行自动驳回</strong>（原因「XX品类在XX国禁投」），未命中的行正常通过。';
+    } else {
+      tip.textContent = '所有国家将被驳回';
+      sub.innerHTML = '提交后：<strong>所有国家均驳回</strong>，驳回原因以审批人填写的为准。';
+    }
+  }
+
+  // 需求三:审批风险行业切换
+  function r3update(){
+    const v = document.getElementById('r3-industry').value;
+    const cfg = RESTRICT[v];
+    const warn = document.getElementById('r3-warn');
+    const isHit = cfg.countries.includes(R3_COUNTRY);
+    if(isHit){
+      warn.style.display='flex';
+      document.getElementById('r3-hitname').textContent = cfg.name;
+      document.getElementById('r3-forbidlist').textContent = CNAME[R3_COUNTRY];
+      document.getElementById('r3-reasonpreview').textContent = `${cfg.name}在${CNAME[R3_COUNTRY]}禁投`;
+    } else {
+      warn.style.display='none';
+    }
+  }
+
+  // 需求四:勾选确认
+  function r4toggle(){
+    document.getElementById('r4-btn').disabled = !document.getElementById('r4-confirm').checked;
+  }
+
+  // 初始化
+  r3update();
+
+  // 目录平滑滚动
+  document.querySelectorAll('.toc a').forEach(a=>{
+    a.addEventListener('click', e=>{
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if(el){ e.preventDefault(); el.scrollIntoView({behavior:'smooth'}); }
+    });
+  });
+</script>
+</body>
+</html>
