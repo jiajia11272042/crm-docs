@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>计提流程完整文档</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;max-width:1000px;margin:0 auto;padding:32px;color:#202124;line-height:1.8;background:#f5f5f5;padding-top:0;}
+h1{color:#1a73e8;border-bottom:2px solid #1a73e8;padding-bottom:8px;margin-top:24px;}
+h2{color:#1a73e8;margin-top:32px;border-left:4px solid #1a73e8;padding-left:12px;}
+h3{color:#333;margin-top:24px;}
+h4{color:#555;}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+th,td{padding:10px 14px;border:1px solid #dadce0;text-align:left;}
+th{background:#f8f9fa;font-weight:600;color:#5f6368;}
+tr:hover td{background:#f0f7ff;}
+code{background:#f1f3f4;padding:2px 6px;border-radius:4px;font-size:13px;font-family:"SF Mono",Monaco,monospace;}
+pre{background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.6;margin:16px 0;}
+pre code{background:none;color:inherit;padding:0;}
+blockquote{border-left:4px solid #f9ab00;background:#fef7e0;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;}
+strong{color:#c5221f;}
+hr{border:none;border-top:1px solid #dadce0;margin:24px 0;}
+p{margin:8px 0;}
+a:hover{background:rgba(255,255,255,0.3) !important;color:white !important;}
+</style>
+</head>
+<body>
+
+<div style="position:sticky;top:0;z-index:100;background:#1a73e8;padding:12px 32px;display:flex;gap:0;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+    <a href="#part1" style="color:white;text-decoration:none;padding:10px 24px;border-radius:8px 8px 0 0;font-weight:600;font-size:15px;background:rgba(255,255,255,0.2);">📋 第一部分：赔付计提流程</a>
+    <a href="#part2" style="color:rgba(255,255,255,0.8);text-decoration:none;padding:10px 24px;border-radius:8px 8px 0 0;font-size:15px;">💰 第二部分：返点计提流程</a>
+</div>
+<h1>计提流程完整文档</h1>
+
+<blockquote>本文档详细描述赔付计提和返点计提的每个计算步骤、数据来源、公式和核对逻辑，供研发理解实现。</blockquote>
+
+<hr>
+
+<h1 id="part1">第一部分：赔付计提流程</h1>
+
+<hr>
+
+<h2>一、流程总览</h2>
+
+<pre><code class="">
+┌─────────────────────────────────────────────────────────────────────┐
+│                      赔付计提 7 步流程                               │
+│                                                                     │
+│  ⓪ 检查本月是否有直客账户需要赔付计提（从赔付管理页面获取）         │
+│       ↓                                                             │
+│  ① 拉取数鲸原始数据（DSP收入、广告主价值）                          │
+│     • 代理账户：按核代账户ID维度拉取                                │
+│     • 直客账户：按account_id维度拉取（核代ID=-1）                   │
+│       ↓                                                             │
+│  ② 国家/媒体名称替换（数据工厂 + 配置文件）                         │
+│       ↓                                                             │
+│  ③ 获取运营预估的计提数据（CRM底表）+ 汇率                          │
+│       ↓                                                             │
+│  ④ 按核代维度聚合赔付数据（透视表）                                  │
+│     • 代理账户：按核代ID聚合                                        │
+│     • 直客账户：按account_id聚合（核代ID为空/-1）                   │
+│       ↓                                                             │
+│  ⑤ 匹配赔付金额到计提数据，计算赔付后金额                           │
+│     • 代理匹配名 = 核代ID + 国家 + 媒体                             │
+│     • 直客匹配名 = account_id + 国家 + 媒体                         │
+│       ↓                                                             │
+│  ⑥ 生成最终推送数据                                                  │
+│       ↓                                                             │
+│  ⑦ 推送CRM + 核对                                                   │
+└─────────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2>二、步骤详解</h2>
+
+<h3>步骤 0：检查直客账户</h3>
+
+<p><strong>目的</strong>：确定本月是否有直客账户需要赔付计提，为步骤 1 的数据拉取提供账户列表</p>
+
+<p><strong>数据来源</strong>：赔付管理页面（直客账户 Tab）</p>
+
+<p><strong>处理逻辑</strong>：</p>
+<pre><code class="">
+1. 从赔付管理页面读取本月标记为「需要赔付」的直客账户列表
+2. 如果列表不为空：
+   → 步骤 1 拉取数据时，需同时拉取这些直客账户的赔付数据
+   → 直客账户的核代账户ID 在数鲸数据中为 -1 或空
+   → 后续步骤 4/5 中，直客账户的聚合和匹配使用 account_id 代替核代ID
+3. 如果列表为空：
+   → 步骤 1 只拉取代理账户数据
+   → 直客相关逻辑跳过
+</code></pre>
+
+<p><strong>赔付账户管理</strong>（赔付管理页面）：</p>
+
+<table>
+<tr><th>账户类型</th><th>默认行为</th><th>可配置</th></tr>
+<tr><td>代理账户</td><td>默认全部需要赔付</td><td>✅ 可排除部分核代ID（配置为不赔付）</td></tr>
+<tr><td>直客账户</td><td>默认不赔付</td><td>✅ 需手动标记是否需要赔付</td></tr>
+</table>
+
+<p>操作方式：</p>
+<p>- 在赔付管理页面维护需要排除的核代ID列表</p>
+<p>- 拉取数据时直接排除这些核代ID</p>
+<p>- 每月初由运营确认本月的赔付范围</p>
+
+<hr>
+
+<h3>步骤 1：拉取数鲸原始数据</h3>
+
+<p><strong>目的</strong>：获取每个账户在每个国家×媒体维度的赔付基础数据</p>
+
+<p><strong>前置判断</strong>：</p>
+<p>1. 从赔付管理页面读取本月需要赔付的账户列表</p>
+<p>   - 代理账户：默认全部需要赔付，但可支持部分代理不赔付（在赔付管理页面配置排除）</p>
+<p>   - 直客账户：需手动标记是否需要赔付</p>
+<p>2. 拉取数据时，直接排除配置为「不赔付」的核代ID</p>
+<p>3. 如果有直客账户需要赔付，拉取时需同时包含代理账户和直客账户的数据</p>
+
+<p><strong>数据来源</strong>：数鲸平台</p>
+<p>- 链接：https://s.mi.cn/6mH3c0</p>
+<p>- 取数范围：当月1日至T-1日的累计数据（T为开始计提的日期）</p>
+<p>  - 例：6月18日开始计提 → 取6月1日-6月17日的数据</p>
+<p>  - 取的是累计总数，不是单日数据</p>
+
+<p><strong>数据维度</strong>：</p>
+<p>- 代理账户：核代账户ID × 账户ID × 国家(ipcountry) × 媒体ID(media_id)</p>
+<p>- 直客账户：账户ID × 国家(ipcountry) × 媒体ID(media_id)（核代账户ID 为 -1 或空）</p>
+
+<p><strong>拉取字段</strong>：</p>
+
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td>核代账户id</td><td>核算代理账户 ID（一个核代下可能有多个账户）。**直客账户此字段为 -1 或空**</td></tr>
+<tr><td>account_id</td><td>实际广告账户 ID</td></tr>
+<tr><td>ipcountry</td><td>国家编码（如 DE, ES, CL, OT）</td></tr>
+<tr><td>media_id</td><td>数鲸的媒体 ID（数字编号）</td></tr>
+<tr><td>赔付金_0时区</td><td>该维度的赔付金额（0 时区）</td></tr>
+<tr><td>赔付口径广告主价值_0时区</td><td>该维度的广告主价值（0 时区）</td></tr>
+<tr><td>dsp_fee</td><td>该维度的 DSP 收入</td></tr>
+</table>
+
+<p><strong>系统自动计算参数</strong>：</p>
+<p>- 本月取几天 = T-1（开始计提日的前一天日期数字）</p>
+<p>  - 例：6月18日开始计提 → 本月取几天 = 17（拉取6月1日-6月17日的数据，共17天）</p>
+<p>  - 由赔付计提的开始时间决定，无需手动填写</p>
+<p>- 本月有几天 = 系统根据当前月份自动判断</p>
+<p>  - 例：6月 → 30天，2月 → 28/29天，1月/3月/5月等 → 31天</p>
+<p>  - 由系统自动获取，无需手动填写</p>
+
+<p><strong>时间折算公式</strong>：</p>
+<pre><code class="">
+赔付金额 = 当前取值 / 本月取几天 × 本月有几天
+例：取了17天数据，当月30天 → 赔付金额 = 当前值 / 17 × 30
+</code></pre>
+
+<p><strong>计算公式</strong>：</p>
+
+<pre><code class="">
+超成本金额（每行）= dsp_fee - 广告主价值
+  即：DSP收入 - 广告主价值
+  如果 &gt; 0 → 需要赔付
+  如果 ≤ 0 → 赔付金额为 0
+
+账户超成本总额（每行）= 该账户下所有国家×媒体的 dsp_fee 总和 - 广告主价值总和
+  用途：计算每行在账户总超成本中的占比
+
+超成本比例（每行）= 该行超成本金额 / 该账户超成本总额
+  用途：按比例分摊赔付金额
+
+账户实际赔付金额（每行）= 超成本比例 × 该账户赔付金总额 × (本月有几天 / 本月取几天)
+  即：按比例分摊 + 时间折算
+  例：取了17天数据，当月30天 → 时间折算 = 30/17
+
+国家*媒体实际超成本金额 = 账户实际赔付金额（后续用于匹配CRM底表）
+</code></pre>
+
+<p><strong>校验（两个独立数据源对比）</strong>：</p>
+
+<p>校验的目的是确认按国家/媒体维度拆分后的赔付金额与账户维度的赔付金额是否一致（差异来源于四舍五入）。</p>
+
+<pre><code class="">
+数据 A — 账户维度赔付金额（从数鲸直接拉取）：
+  拉取方式：同一数鲸链接，按账户ID维度拉取 T-1 的赔付金额
+  预估全月 = 账户赔付金额 / T-1 × 当月天数
+
+数据 B — 账户*国家*媒体维度赔付金额（本步骤计算得出）：
+  = 按上述比例分摊 + 时间折算后的所有行赔付金额之和
+
+diff = 数据A的预估全月总额 - 数据B的赔付总额
+日均diff = diff / 当月天数
+  → 日均diff ≤ 100 美金：正常（四舍五入误差）
+  → 日均diff &gt; 100 美金：需人工核查（可能存在数据异常）
+</code></pre>
+
+<p><strong>差异来源</strong>：</p>
+<p>- 按国家/媒体维度拆分后，每行四舍五入保留两位小数</p>
+<p>- 重新聚合后与账户维度的原始值产生微小差异</p>
+<p>- 日均 diff 通常在 50 美金左右，属正常范围</p>
+
+<hr>
+
+<h3>步骤 2：国家和媒体名称替换</h3>
+
+<p><strong>目的</strong>：将原始数据中的国家编码和媒体ID替换为计提平台使用的标准名称</p>
+
+<p><strong>核心逻辑</strong>：</p>
+<pre><code class="">
+输入：账户 × 国家编码 × media_id 维度的赔付金额
+  ↓
+国家替换：部分国家编码 → OT（如 CL→OT, 其他非标准国家→OT）
+媒体替换：media_id → 计提媒体名称（如 317→海外小米音乐, 7963→海外联盟业务-SDK）
+  ↓
+输出：账户 × 国家名称 × 媒体名称 维度的赔付金额
+</code></pre>
+
+<p><strong>处理思路（推荐方案）</strong>：</p>
+
+<p>将计提配置文件增加 media_id 列，实现一步替换：</p>
+<pre><code class="">
+计提配置文件增加 media_id 列后：
+  media_id | media_type | 计提媒体名称
+  317      | MSA        | 海外小米音乐
+  7963     | GLOBAL_MEDIA_7963 | 海外联盟业务-SDK
+  ...
+
+赔付数据中的 media_id → 直接通过配置文件匹配 → 得到计提媒体名称
+不需要额外跑数据工厂的 SQL
+</code></pre>
+
+<p><strong>当前实现方式（两步替换）</strong>：</p>
+
+<h4>第一步：获取 media_id 与 media_type 的对应关系</h4>
+
+<p>- <strong>数据工厂链接</strong>：https://dt.mi.com/workspace/#/workspace/11188/adHoc/17012541</p>
+<p>- <strong>SQL 查询</strong>：</p>
+<pre><code class="sql">
+  SELECT DISTINCT media_id, media_type
+  FROM iceberg_alsgprc_hadoop.ad_dim.dim_global_tag_pid_df
+</code></pre>
+<p>- <strong>说明</strong>：从数据工厂维表拉取 media_id 与 media_type 的对应关系，每月跑一次</p>
+<p>- <strong>与运营预估规则一致</strong>：赔付的国家/媒体替换规则与运营预估模块的替换规则相同</p>
+
+<h4>MSA 媒体按比例拆分</h4>
+
+<p>MSA（media_type=MSA）不直接替换为单一媒体名称，而是<strong>按分成系数拆分到多个子媒体</strong>：</p>
+
+<table>
+<tr><th>原始媒体</th><th>media_type</th><th>拆分到媒体</th><th>分成系数</th></tr>
+<tr><td>MSA</td><td>GLOBAL_368</td><td>海外安全中心</td><td>0.24</td></tr>
+<tr><td>MSA</td><td>GLOBAL_BROWSER</td><td>海外浏览器</td><td>0.05</td></tr>
+<tr><td>MSA</td><td>GLOBAL_VIDEO</td><td>海外小米视频</td><td>0.05</td></tr>
+<tr><td>MSA</td><td>GLOBAL_MUSIC</td><td>海外小米音乐</td><td>0.30</td></tr>
+<tr><td>MSA</td><td>FILE_EXPLORER</td><td>海外文件管理器</td><td>0.24</td></tr>
+<tr><td>MSA</td><td>GLOBAL_THEME_MANAGER</td><td>海外主题</td><td>0.09</td></tr>
+<tr><td>MSA</td><td>GLOBAL_DOWNLOAD_MANAGER</td><td>海外下载管理器</td><td>0.03</td></tr>
+</table>
+
+<p><strong>拆分计算</strong>：</p>
+<pre><code class="">
+某子媒体赔付金额 = MSA原始赔付金额 × 该子媒体分成系数
+例：MSA赔付 $10,000 → 海外安全中心 = $10,000 × 0.24 = $2,400
+所有子媒体拆分金额之和 = 原始MSA赔付金额
+分成系数总和 = 1.00
+</code></pre>
+
+<h4>第二步：media_id → 计提媒体名称（从配置文件映射）</h4>
+
+<p>- <strong>配置文件</strong>：【计提配置文件】每月更新版本</p>
+<p>  - 链接：https://mi.feishu.cn/sheets/YynMs3JSYhSzPNt5USOcmNwUnUf?sheet=lelpn2</p>
+<p>- <strong>映射规则</strong>（非 MSA 媒体）：</p>
+
+<table>
+<tr><th>media_id</th><th>media_type</th><th>计提媒体（替换后名称）</th></tr>
+<tr><td>7963</td><td>GLOBAL_MEDIA_7963</td><td>海外联盟业务-SDK</td></tr>
+<tr><td>7913</td><td>GLOBAL_MEDIA_7913</td><td>海外联盟业务-SDK</td></tr>
+<tr><td>...</td><td>...</td><td>每月更新</td></tr>
+</table>
+
+<h4>国家名称替换（从配置文件）</h4>
+
+<p>- <strong>配置文件</strong>：同上【计提配置文件】的国家映射 sheet</p>
+<p>- <strong>替换规则</strong>：</p>
+
+<table>
+<tr><th>替换前</th><th>替换后</th><th>说明</th></tr>
+<tr><td>其他国家编码</td><td>OT</td><td>所有非标准国家统一替换为 OT</td></tr>
+<tr><td>IN</td><td>IN</td><td>印度保持不变</td></tr>
+<tr><td>ID</td><td>ID</td><td>印尼保持不变</td></tr>
+<tr><td>...</td><td>...</td><td>每月根据配置文件更新</td></tr>
+</table>
+
+<p><strong>替换后检查</strong>：</p>
+<p>- 替换国家列不能有 NA（未匹配的国家）</p>
+<p>- 替换媒体列不能有 NA（未匹配的媒体）</p>
+<p>- 有 NA → 需要特殊处理（手动补充映射或删除该行）</p>
+
+<hr>
+
+<h3>步骤 3：获取运营预估的计提数据 + 汇率</h3>
+
+<p><strong>目的</strong>：获取运营在计提平台完成的预估数据，作为赔付扣减的基数</p>
+
+<p><strong>数据来源</strong>：计提平台导出（运营预估完成后的数据）</p>
+
+<p><strong>数据维度</strong>：核代账户 × 合同ID × 国家 × 媒体</p>
+
+<p><strong>字段</strong>：</p>
+
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td>核代账户</td><td>供参考，推送CRM时删除</td></tr>
+<tr><td>合同ID</td><td>S+6位（如 S004075）</td></tr>
+<tr><td>国家</td><td>已替换后的标准国家名</td></tr>
+<tr><td>媒体</td><td>已替换后的标准媒体名</td></tr>
+<tr><td>美金金额（系统金额）</td><td>运营预估的美金金额（原始计提金额）</td></tr>
+<tr><td>计提金额（结算币种）</td><td>美金金额 × 汇率（结算币种金额）</td></tr>
+<tr><td>收入类型</td><td>预估收入</td></tr>
+<tr><td>结算月份</td><td>如 2026-05</td></tr>
+<tr><td>结算币种</td><td>USD / EUR / INR 等</td></tr>
+</table>
+
+<p><strong>汇率配置</strong>：</p>
+<p>- 在计提平台的汇率配置页面维护</p>
+<p>- 每月更新一次</p>
+<p>- 用于美金 → 结算币种的换算</p>
+
+<hr>
+
+<h3>步骤 4：按核代维度聚合赔付数据</h3>
+
+<p><strong>目的</strong>：将步骤 1 的细粒度赔付数据按核代维度聚合，便于与 CRM 底表匹配</p>
+
+<p><strong>操作</strong>：对步骤 1 的数据做数据透视表</p>
+
+<p><strong>透视维度</strong>：</p>
+<p>- 代理账户：核代账户ID × 替换国家 × 替换媒体</p>
+<p>- 直客账户：账户ID × 替换国家 × 替换媒体（<strong>因为直客的核代ID为空/-1，聚合到 account_id 上</strong>）</p>
+
+<p><strong>聚合指标</strong>：国家*媒体实际超成本金额（求和）</p>
+
+<p><strong>匹配名构造</strong>：</p>
+<p>- 代理账户：核代账户ID + 国家 + 媒体（字符串拼接）</p>
+<p>  - 例：<code>368BRShareMe</code>（核代368 + 巴西 + ShareMe）</p>
+<p>- 直客账户：account_id + 国家 + 媒体（用 account_id 代替核代ID）</p>
+<p>  - 例：<code>515BRShareMe</code>（直客账户515 + 巴西 + ShareMe）</p>
+
+<p><strong>特殊处理</strong>：</p>
+<p>- 直客账户 ID 替换：如 515 → 4799（手动处理，后续迭代自动化）</p>
+<p>- 需要排除的核代ID已在步骤 0 的赔付管理页面配置，拉取数据时已排除</p>
+
+<hr>
+
+<h3>步骤 5：匹配赔付金额 + 计算赔付后金额（核心步骤）</h3>
+
+<p><strong>目的</strong>：将赔付金额匹配到每条计提数据上，计算赔付后的计提金额</p>
+
+<p><strong>匹配逻辑</strong>：</p>
+
+<pre><code class="">
+构造 CRM 底表的匹配名：
+  代理账户 = 核代账户ID + 国家 + 媒体
+  直客账户 = account_id + 国家 + 媒体（直客核代ID为空/-1，用account_id）
+
+用匹配名去透视表（步骤4）中 VLOOKUP 赔付金额
+</code></pre>
+
+<p><strong>逐行计算公式</strong>：</p>
+
+<pre><code class="">
+K列 - 匹配名 = A列(核代账户) + C列(国家) + D列(媒体)
+
+L列 - 国家*媒体实际超成本金额
+  = VLOOKUP(K列, 透视表匹配名范围, 赔付金额列, 0)
+  即：通过匹配名从透视表中找到对应的赔付金额
+
+M列 - 美金金额减超成本金额
+  = E列(美金金额/系统金额) - L列(赔付金额)
+  即：运营预估金额 - 赔付金额
+
+N列 - 去掉小于0的，保留2位小数
+  = IF(M列 &lt; 0, 0, ROUND(M列, 2))
+  即：如果赔付后金额为负数则置0（避免倒赔），保留两位小数
+
+O列 - 减去赔付后计提金额（结算币种）
+  = N列 × 汇率
+  即：赔付后美金金额 × 结算汇率 = 结算币种金额
+</code></pre>
+
+<p><strong>校验字段</strong>：</p>
+
+<pre><code class="">
+P列 - 是否重复匹配（校验一个核代ID是否有俩合同）
+  = IF(COUNTIF(A列范围, 当前核代账户ID) &gt; 1, "重复", "")
+  如果同一核代ID对应多个合同 → 标记告警，需运营确认
+
+Q列 - 合同匹配名 = B列(合同ID) + C列(国家) + D列(媒体)
+  用途：与推送CRM时的匹配名对比
+
+Y列 - 算出来的赔付总额 = SUM(O列)
+Z列 - 赔付原始表赔付总额 = 步骤1的赔付总额
+AA列 - diff = Y列 - Z列
+  → diff 应该等于没匹配上CRM的金额
+  → 如果 diff 比没匹配上的大 → 说明有核代ID重复合同导致重复赔付
+</code></pre>
+
+<hr>
+
+<h3>步骤 6：生成最终推送数据</h3>
+
+<p><strong>数据来源</strong>：步骤 5 的计算结果自动填入</p>
+
+<p><strong>最终字段</strong>：</p>
+
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td>合同ID</td><td>从CRM底表获取</td></tr>
+<tr><td>国家</td><td>已替换</td></tr>
+<tr><td>媒体</td><td>已替换</td></tr>
+<tr><td>计提金额（结算币种）</td><td>步骤5 O列 = 赔付后金额 × 汇率</td></tr>
+<tr><td>美金金额（系统金额）</td><td>步骤5 N列 = 赔付后美金金额</td></tr>
+<tr><td>收入类型</td><td>预估收入</td></tr>
+<tr><td>结算月份</td><td>当月</td></tr>
+</table>
+
+<hr>
+
+<h3>步骤 7：推送 CRM + 核对</h3>
+
+<p><strong>推送字段（CRM要求的完整字段）</strong>：</p>
+
+<table>
+<tr><th>字段</th><th>来源/计算</th></tr>
+<tr><td>计提ID</td><td>合同ID + 结算月份（如 S0040752026-05）</td></tr>
+<tr><td>合同ID</td><td>从计提数据获取</td></tr>
+<tr><td>国家</td><td>已替换</td></tr>
+<tr><td>媒体</td><td>已替换</td></tr>
+<tr><td>计提金额（结算币种）</td><td>赔付后金额 × 汇率</td></tr>
+<tr><td>美金金额（系统金额）</td><td>赔付后美金金额</td></tr>
+<tr><td>CNY扣税</td><td>= 美金金额 × 汇率（如 × 6.84323）</td></tr>
+<tr><td>收入类型</td><td>预估收入</td></tr>
+<tr><td>计提人</td><td>运营姓名</td></tr>
+<tr><td>结算开始时间</td><td>月初（如 2026/5/1）</td></tr>
+<tr><td>结算结束时间</td><td>月末（如 2026/5/31）</td></tr>
+<tr><td>货币单位</td><td>USD / EUR 等</td></tr>
+<tr><td>一级业务线</td><td>广告</td></tr>
+<tr><td>二级业务线</td><td>海外-广告效果</td></tr>
+<tr><td>三级业务线</td><td>广告-Miads</td></tr>
+<tr><td>税率</td><td>0</td></tr>
+<tr><td>客户简称</td><td>核代账户 ID</td></tr>
+<tr><td>客户类型</td><td>代理商</td></tr>
+<tr><td>集团名称</td><td>CRM 同步</td></tr>
+<tr><td>公司名称</td><td>CRM 同步</td></tr>
+<tr><td>我方主体</td><td>Xiaomi Technologies Singapore Pte. Ltd.</td></tr>
+<tr><td>合同状态</td><td>需双签</td></tr>
+</table>
+
+<p><strong>推送限制</strong>：</p>
+<p>- CRM 上传可批量</p>
+<p>- 推送只能推 500 条/次</p>
+<p>- 失败不提示</p>
+
+<p><strong>核对流程</strong>：</p>
+<p>1. 推送后在 CRM 搜索结算时间，导出该时段报表</p>
+<p>2. 与步骤 5 的计算结果逐行比对</p>
+<p>3. 不一致 → 联系赵赫排查（通常是推送技术问题，非数据逻辑问题）</p>
+
+<hr>
+
+<h2>三、异常处理</h2>
+
+<table>
+<tr><th>异常场景</th><th>处理方式</th></tr>
+<tr><td>日均 diff > 100 美金</td><td>人工核查，常见原因：四舍五入、账户核代关系变更</td></tr>
+<tr><td>同一核代ID对应多个合同</td><td>标记告警，运营确认（通常业务上合并为一个）</td></tr>
+<tr><td>赔付后金额 < 0</td><td>置 0（避免倒赔）</td></tr>
+<tr><td>媒体名称 NA（未匹配）</td><td>手动补充映射或删除该行</td></tr>
+<tr><td>直客账户</td><td>手动处理（合同号映射如 515→4799），后续迭代</td></tr>
+<tr><td>CRM 推送失败</td><td>联系赵赫排查，常见原因：合同未双签、行数限制</td></tr>
+<tr><td>合同未审批通过</td><td>本月不计提该合同</td></tr>
+</table>
+
+<hr>
+
+<h2>四、新平台自动化映射</h2>
+
+<table>
+<tr><th>Excel 步骤</th><th>新平台实现</th></tr>
+<tr><td>步骤1：数鲸取数</td><td>数据侧 API 推送或定时拉取</td></tr>
+<tr><td>步骤2：国家/媒体替换</td><td>配置表自动匹配（数据工厂SQL + 配置文件）</td></tr>
+<tr><td>步骤3：CRM底表</td><td>从计提平台运营预估数据自动获取</td></tr>
+<tr><td>步骤3：汇率</td><td>计提平台汇率配置页维护</td></tr>
+<tr><td>步骤4：透视表聚合</td><td>系统按核代自动聚合</td></tr>
+<tr><td>步骤5：匹配+计算</td><td>系统自动 VLOOKUP 匹配 + 公式计算</td></tr>
+<tr><td>步骤5：重复合同校验</td><td>自动检测，告警提示</td></tr>
+<tr><td>步骤6：最终表</td><td>自动生成</td></tr>
+<tr><td>步骤7：推送CRM</td><td>API 推送（无500条限制）</td></tr>
+<tr><td>步骤7：核对</td><td>自动核对</td></tr>
+<tr><td>直客处理</td><td>赔付管理页面，管理直客账户标记</td></tr>
+</table>
+
+<hr>
+
+<h2>五、赔付管理页面（新增）</h2>
+
+<p>类似合同管理，管理每月需要计提赔付的账户：</p>
+
+<p><strong>代理账户</strong>：默认全部需要赔付计提</p>
+<p><strong>直客账户</strong>：需手动标记是否需要赔付</p>
+
+<p>页面提供：</p>
+<p>- 查看所有账户的赔付状态</p>
+<p>- 标记直客账户是否需要赔付</p>
+<p>- 新增/编辑直客账户配置</p>
+<p>- 批量操作</p>
+
+<hr>
+
+<h1 id="part2">第二部分：返点计提流程</h1>
+
+<hr>
+
+<h2>一、返点计提流程总览</h2>
+
+<pre><code class="">
+┌──────────────────────────────────────────────────────────────────┐
+│                    返点计提流程                                    │
+│                                                                  │
+│  ⓪ 张真更新主表（所有核代扣除赔付后的预估收入）                  │
+│       ↓                                                          │
+│  ① 运营复制自己负责的核代扣除赔付后收入数据                      │
+│       ↓                                                          │
+│  ② 查询返点系数（数金平台，按区域）                              │
+│       ↓                                                          │
+│  ③ 计算返点基数 = 扣除赔付后收入 - 扣除项                       │
+│       ↓                                                          │
+│  ④ 计算预估返点金额 = 返点基数 × 返点系数                       │
+│       ↓                                                          │
+│  ⑤ 填入上传模板（删除金额为0的条目）                             │
+│       ↓                                                          │
+│  ⑥ 保存并上传CRM                                                 │
+└──────────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2>二、步骤详解</h2>
+
+<h3>步骤 0：张真更新主表</h3>
+
+<p><strong>目的</strong>：更新所有核代账户的预估收入数据（已扣除赔付金额）</p>
+
+<p><strong>负责人</strong>：张真</p>
+
+<p><strong>操作</strong>：</p>
+<p>1. 张真完成主表更新（包含所有核代的收入数据）</p>
+<p>2. 上传到共享文档</p>
+<p>3. 推送到工作群</p>
+
+<p><strong>数据维度</strong>：核代账户 × 国家 × 媒体</p>
+
+<p><strong>数据内容</strong>：</p>
+<p>- 核代账户的预估收入（已扣除赔付金额）</p>
+<p>- 分媒体的收入明细</p>
+<p>- 包含海外联盟媒体的收入数据（后续需扣除）</p>
+
+<hr>
+
+<h3>步骤 1：运营复制核代扣除赔付后收入</h3>
+
+<p><strong>目的</strong>：获取自己负责的核代账户的收入数据</p>
+
+<p><strong>操作</strong>：</p>
+<p>1. 从张真的文档中找到自己负责的合同</p>
+<p>   - 例：合同3012 对应核代4799</p>
+<p>2. 复制该核代的「扣除赔付后收入」数据</p>
+<p>3. 粘贴到返点计算工作表</p>
+
+<p><strong>数据维度</strong>：核代账户 × 国家 × 媒体</p>
+
+<hr>
+
+<h3>步骤 2：查询返点系数</h3>
+
+<p><strong>目的</strong>：获取当前月份的返点系数</p>
+
+<p><strong>数据来源</strong>：数金平台（由销管维护）</p>
+
+<p><strong>查询方式</strong>：</p>
+<p>1. 打开数金链接（分区域面板：亚太组/中东/欧洲等）</p>
+<p>2. 选择所在区域的面板</p>
+<p>3. 查看最新月份的盘点数据</p>
+<p>4. 找到「总计返点」= 代理基础返点 + 动态X返点</p>
+
+<p><strong>返点系数</strong>：</p>
+
+<table>
+<tr><th>客户</th><th>返点系数</th><th>说明</th></tr>
+<tr><td>客户313216</td><td>13%</td><td>该客户所有合同统一系数</td></tr>
+<tr><td>客户1234</td><td>10%</td><td>该客户所有合同统一系数</td></tr>
+<tr><td>...</td><td>...</td><td>每个客户系数可能不同</td></tr>
+</table>
+
+<p><strong>计算方式</strong>：</p>
+<p>- 可按单个合同单独计算</p>
+<p>- 也可按同一客户合并计算（同一客户下所有合同按统一系数）</p>
+
+<hr>
+
+<h3>步骤 3：计算返点基数</h3>
+
+<p><strong>核心公式</strong>：</p>
+
+<pre><code class="">
+返点基数 = 扣除赔付后收入 - 扣除项
+</code></pre>
+
+<p><strong>扣除项（所有区域统一规则，各区域一致）</strong>：</p>
+
+<table>
+<tr><th>扣除项</th><th>说明</th><th>处理方式</th></tr>
+<tr><td>海外联盟媒体收入（offline）</td><td>所有区域均扣除</td><td>从返点基数中减去</td></tr>
+<tr><td>非标资源收入</td><td>如果非标在单独合同中则不影响；如果与标准在同一个合同则需要扣除</td><td>按合同维度判断</td></tr>
+</table>
+
+<p><strong>不需要扣除的项</strong>：</p>
+<p>- MSA 媒体：不需要去除，保留在返点基数中</p>
+<p>- 区域差异：目前各区域规则统一，无区域特殊扣除</p>
+
+<p><strong>计算示例</strong>：</p>
+<pre><code class="">
+核代4799 扣除赔付后收入：$499,000
+其中海外联盟媒体收入：$94,994
+非标资源收入：$12,000（出海区域扣除）
+
+返点基数 = $499,000 - $94,994 - $12,000 = $392,006
+</code></pre>
+
+<hr>
+
+<h3>步骤 4：计算预估返点金额</h3>
+
+<p><strong>核心公式</strong>：</p>
+
+<pre><code class="">
+预估返点金额 = 返点基数 × 返点系数
+</code></pre>
+
+<p><strong>计算示例</strong>：</p>
+<pre><code class="">
+返点基数：$392,006
+返点系数：13.5%
+预估返点金额 = $392,006 × 13.5% = $52,921
+</code></pre>
+
+<p><strong>多客户计算</strong>：</p>
+<pre><code class="">
+客户313216（返点系数13%）：
+  核代A：基数 $200,000 × 13% = $26,000
+  核代B：基数 $150,000 × 13% = $19,500
+  合计：$45,500
+
+客户1234（返点系数10%）：
+  核代C：基数 $300,000 × 10% = $30,000
+</code></pre>
+
+<hr>
+
+<h3>步骤 5：填入上传模板</h3>
+
+<p><strong>操作</strong>：</p>
+<p>1. 将计算结果填入上传模板</p>
+<p>2. <strong>金额为 0 的条目必须删除</strong>（否则上传失败）</p>
+<p>3. 保存</p>
+
+<p><strong>模板字段</strong>：</p>
+
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td>合同ID</td><td>S+6位</td></tr>
+<tr><td>核代账户ID</td><td>—</td></tr>
+<tr><td>国家</td><td>—</td></tr>
+<tr><td>媒体</td><td>—</td></tr>
+<tr><td>返点基数（USD）</td><td>扣除海外联盟等后的基数</td></tr>
+<tr><td>返点系数</td><td>如 13.5%</td></tr>
+<tr><td>预估返点金额</td><td>基数 × 系数</td></tr>
+<tr><td>结算月份</td><td>当月</td></tr>
+</table>
+
+<hr>
+
+<h3>步骤 6：上传CRM</h3>
+
+<p><strong>操作</strong>：保存后打开CRM确认上传成功</p>
+
+<p><strong>校验</strong>：上传后检查CRM中的数据是否与本地计算一致</p>
+
+<hr>
+
+<h2>三、返点基数规则汇总（各区域统一）</h2>
+
+<table>
+<tr><th>规则</th><th>说明</th></tr>
+<tr><td>返点基数 = 运营预估 - 赔付 - 海外联盟媒体(offline) - 非标资源收入</td><td>非标在单独合同不影响，同一合同需扣除</td></tr>
+<tr><td>MSA 媒体</td><td>**不需要去除**，保留在返点基数中</td></tr>
+<tr><td>区域差异</td><td>目前各区域规则统一</td></tr>
+</table>
+
+<p><strong>区域运营分工</strong>：</p>
+<p>- APAC（亚太）：栾露文、张思涵</p>
+<p>- SEA/IN（东南亚/印度）：张子菁</p>
+<p>- CIS（俄罗斯）：刘杰</p>
+
+<hr>
+
+<h2>四、新平台返点模块设计</h2>
+
+<h3>自动化处理映射</h3>
+
+<table>
+<tr><th>手动步骤</th><th>新平台实现</th></tr>
+<tr><td>步骤0：张真更新主表</td><td>系统自动从赔付模块获取扣除赔付后收入</td></tr>
+<tr><td>步骤1：复制核代数据</td><td>系统自动按核代聚合</td></tr>
+<tr><td>步骤2：查询返点系数</td><td>一期人工填入；二期对接数金API</td></tr>
+<tr><td>步骤3：计算返点基数</td><td>系统自动扣除海外联盟(offline)/非标(同一合同)，MSA不扣除</td></tr>
+<tr><td>步骤4：计算返点金额</td><td>系统自动计算</td></tr>
+<tr><td>步骤5：填入模板</td><td>自动生成推送数据</td></tr>
+<tr><td>步骤6：上传CRM</td><td>API推送</td></tr>
+</table>
+
+<h3>返点管理页面</h3>
+
+<pre><code class="">
+┌──────────────────────────────────────────────────────────────┐
+│  返点管理                                                     │
+│                                                              │
+│  Tab: [返点系数配置] [返点计算记录]                           │
+│                                                              │
+│  返点系数配置：                                               │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  客户名称 │ 区域 │ 返点系数 │ 生效月份 │ 操作        │ │
+│  │  客户A   │ 亚太 │ 13.5%   │ 2026-06  │ [编辑]      │ │
+│  │  客户B   │ 亚太 │ 10%     │ 2026-06  │ [编辑]      │ │
+│  │  客户C   │ 紫金 │ 12%     │ 2026-06  │ [编辑]      │ │
+│  │                                                    │ │
+│  │  [+ 新增配置]  [📥 从数金平台导入]                  │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                                                              │
+│  区域扣除规则配置：                                          │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │  规则项           │ 出海区域 │ 紫金H1 │ 说明          │ │
+│  │  海外联盟媒体     │ 扣除     │ 扣除   │ 所有区域扣除  │ │
+│  │  非标资源         │ 扣除     │ 待确认 │ —             │ │
+│  │  马萨媒体         │ —       │ 待确认 │ 仅紫金        │ │
+│  └────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<hr>
+
+<h2>五、需要确认的规则</h2>
+
+<table>
+<tr><th>项</th><th>当前状态</th><th>待确认</th></tr>
+<tr><td>返点系数获取方式</td><td>一期人工填入</td><td>二期对接数金API</td></tr>
+<tr><td>一个客户多合同</td><td>可合并按统一系数计算</td><td>已确认</td></tr>
+</table>
+
+</body>
+</html>
