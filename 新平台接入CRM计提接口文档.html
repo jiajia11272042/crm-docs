@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新平台接入CRM计提接口文档</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .section h3 {
+            color: #555;
+            font-size: 1.3em;
+            margin: 20px 0 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f5f7fa;
+        }
+
+        .required {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .optional {
+            color: #4caf50;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+        }
+
+        .code-block .keyword {
+            color: #569cd6;
+        }
+
+        .code-block .string {
+            color: #ce9178;
+        }
+
+        .code-block .comment {
+            color: #6a9955;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-box.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .info-box.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .info-box h4 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-right: 8px;
+        }
+
+        .tag-required {
+            background: #f44336;
+            color: white;
+        }
+
+        .tag-optional {
+            background: #4caf50;
+            color: white;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .column {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        .column h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .flow-step {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 新平台接入CRM计提接口文档</h1>
+            <p>完整接口说明 · 字段映射 · 请求示例 · 响应处理</p>
+            <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">版本：v1.0 | 更新时间：2026年7月</p>
+        </div>
+
+        <!-- 一、接口概述 -->
+        <div class="section">
+            <h2>📋 一、接口概述</h2>
+            <table>
+                <tr>
+                    <td><strong>接口名称</strong></td>
+                    <td>计提数据推送接口</td>
+                </tr>
+                <tr>
+                    <td><strong>请求方式</strong></td>
+                    <td>POST</td>
+                </tr>
+                <tr>
+                    <td><strong>接口地址</strong></td>
+                    <td><code>http://{CRM域名}/crm/api/o/provision/external/accept</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Content-Type</strong></td>
+                    <td>application/json</td>
+                </tr>
+                <tr>
+                    <td><strong>认证方式</strong></td>
+                    <td>签名验证（MD5）</td>
+                </tr>
+                <tr>
+                    <td><strong>调用方向</strong></td>
+                    <td>新平台 → CRM</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 二、请求参数 -->
+        <div class="section">
+            <h2>📝 二、请求参数</h2>
+
+            <h3>2.1 外层参数结构（ExternalParamBo）</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>参数名</th>
+                        <th>类型</th>
+                        <th>必填</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>sign</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>签名字符串（每次请求不同）</td>
+                    </tr>
+                    <tr>
+                        <td><code>timestamp</code></td>
+                        <td>Date</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>请求时间戳</td>
+                    </tr>
+                    <tr>
+                        <td><code>count</code></td>
+                        <td>Integer</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>data数组的长度</td>
+                    </tr>
+                    <tr>
+                        <td><code>data</code></td>
+                        <td>List&lt;CrmData&gt;</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>计提数据列表</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>2.2 计提数据字段（CrmData）</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>参数名</th>
+                        <th>类型</th>
+                        <th>必填</th>
+                        <th>说明</th>
+                        <th>示例值</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>contractCode</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>合同号（CRM中已存在）</td>
+                        <td>HT202607001</td>
+                    </tr>
+                    <tr>
+                        <td><code>country</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>国家</td>
+                        <td>US</td>
+                    </tr>
+                    <tr>
+                        <td><code>media</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>媒体</td>
+                        <td>Google</td>
+                    </tr>
+                    <tr>
+                        <td><code>provisionMoney</code></td>
+                        <td>BigDecimal</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>计提收入（结算币种）</td>
+                        <td>10000.00</td>
+                    </tr>
+                    <tr>
+                        <td><code>origUsdMoney</code></td>
+                        <td>BigDecimal</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>原始预计收入（美金）</td>
+                        <td>1200.00</td>
+                    </tr>
+                    <tr>
+                        <td><code>usdMoney</code></td>
+                        <td>BigDecimal</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>预计收入（美金）</td>
+                        <td>1200.00</td>
+                    </tr>
+                    <tr>
+                        <td><code>earningType</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>收入类型</td>
+                        <td>收入</td>
+                    </tr>
+                    <tr>
+                        <td><code>contractType</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>合同类型（0-收款，1-付款）</td>
+                        <td>0</td>
+                    </tr>
+                    <tr>
+                        <td><code>settlementMonth</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-required">必须</span></td>
+                        <td>结算月份</td>
+                        <td>2026-07-01 00:00:00</td>
+                    </tr>
+                    <tr>
+                        <td><code>remark</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-optional">可选</span></td>
+                        <td>备注</td>
+                        <td>7月计提</td>
+                    </tr>
+                    <tr>
+                        <td><code>accrualBy</code></td>
+                        <td>String</td>
+                        <td><span class="tag tag-optional">可选</span></td>
+                        <td>计提人</td>
+                        <td>张三</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="info-box warning">
+                <h4>⚠️ 重要说明</h4>
+                <ul>
+                    <li><strong>不需要传的字段</strong>：id、errorReason（CRM会自动生成provisionId）</li>
+                    <li><strong>contractCode必须存在</strong>：CRM中必须有这个合同，否则会报错"合同不存在"</li>
+                    <li><strong>country+media唯一</strong>：同一合同+月份下，country+media必须唯一</li>
+                    <li><strong>日期格式</strong>：settlementMonth格式必须是 <code>yyyy-MM-dd HH:mm:ss</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 三、签名算法 -->
+        <div class="section">
+            <h2>🔑 三、签名算法</h2>
+
+            <h3>3.1 签名生成规则</h3>
+            <div class="code-block">
+<span class="comment">// 1. 准备参数</span>
+Map&lt;String, Object&gt; param = <span class="keyword">new</span> HashMap&lt;&gt;();
+param.put(<span class="string">"data"</span>, data);           <span class="comment">// 计提数据（JSON数组）</span>
+param.put(<span class="string">"secretKey"</span>, APP_SECRET); <span class="comment">// 固定密钥</span>
+param.put(<span class="string">"timestamp"</span>, timestamp);  <span class="comment">// 时间戳</span>
+param.put(<span class="string">"count"</span>, count);          <span class="comment">// 数据条数</span>
+
+<span class="comment">// 2. 排序并拼接</span>
+<span class="comment">// 按key排序，拼接成: key1=value1&amp;key2=value2&amp;...&amp;secretKey=xxx</span>
+
+<span class="comment">// 3. MD5加密</span>
+String sign = MD5(拼接后的字符串).toUpperCase();
+            </div>
+
+            <h3>3.2 固定密钥</h3>
+            <div class="code-block">
+<span class="keyword">public static final</span> String APP_SECRET = <span class="string">"244e7f76db84b915ff10dd9d239eeb4b"</span>;
+            </div>
+
+            <div class="info-box">
+                <h4>🔑 签名特点</h4>
+                <ul>
+                    <li><strong>每次请求都不同</strong>：因为timestamp和data内容都在变化</li>
+                    <li><strong>安全性</strong>：保证请求未被篡改</li>
+                    <li><strong>幂等性</strong>：相同参数+时间戳产生相同签名</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 四、请求示例 -->
+        <div class="section">
+            <h2>📄 四、请求示例</h2>
+
+            <h3>4.1 完整请求示例</h3>
+            <div class="code-block">
+{
+    <span class="string">"sign"</span>: <span class="string">"A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6"</span>,
+    <span class="string">"timestamp"</span>: <span class="string">"2026-07-07T10:30:00"</span>,
+    <span class="string">"count"</span>: 2,
+    <span class="string">"data"</span>: [
+        {
+            <span class="string">"contractCode"</span>: <span class="string">"HT202607001"</span>,
+            <span class="string">"country"</span>: <span class="string">"US"</span>,
+            <span class="string">"media"</span>: <span class="string">"Google"</span>,
+            <span class="string">"provisionMoney"</span>: 10000.00,
+            <span class="string">"origUsdMoney"</span>: 1200.00,
+            <span class="string">"usdMoney"</span>: 1200.00,
+            <span class="string">"earningType"</span>: <span class="string">"收入"</span>,
+            <span class="string">"contractType"</span>: <span class="string">"0"</span>,
+            <span class="string">"settlementMonth"</span>: <span class="string">"2026-07-01 00:00:00"</span>,
+            <span class="string">"remark"</span>: <span class="string">"7月程序化收入计提"</span>,
+            <span class="string">"accrualBy"</span>: <span class="string">"张三"</span>
+        },
+        {
+            <span class="string">"contractCode"</span>: <span class="string">"HT202607001"</span>,
+            <span class="string">"country"</span>: <span class="string">"JP"</span>,
+            <span class="string">"media"</span>: <span class="string">"Facebook"</span>,
+            <span class="string">"provisionMoney"</span>: 8000.00,
+            <span class="string">"origUsdMoney"</span>: 960.00,
+            <span class="string">"usdMoney"</span>: 960.00,
+            <span class="string">"earningType"</span>: <span class="string">"收入"</span>,
+            <span class="string">"contractType"</span>: <span class="string">"0"</span>,
+            <span class="string">"settlementMonth"</span>: <span class="string">"2026-07-01 00:00:00"</span>,
+            <span class="string">"remark"</span>: <span class="string">"7月程序化收入计提"</span>,
+            <span class="string">"accrualBy"</span>: <span class="string">"张三"</span>
+        }
+    ]
+}
+            </div>
+        </div>
+
+        <!-- 五、响应参数 -->
+        <div class="section">
+            <h2>📥 五、响应参数</h2>
+
+            <h3>5.1 响应结构</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>参数名</th>
+                        <th>类型</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>code</code></td>
+                        <td>String</td>
+                        <td>状态码</td>
+                    </tr>
+                    <tr>
+                        <td><code>messageInfo</code></td>
+                        <td>String</td>
+                        <td>提示信息</td>
+                    </tr>
+                    <tr>
+                        <td><code>data</code></td>
+                        <td>List&lt;Pair&lt;String, String&gt;&gt;</td>
+                        <td>失败的记录（key=id, value=错误原因）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>5.2 状态码说明</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>状态码</th>
+                        <th>含义</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>200</code></td>
+                        <td>成功</td>
+                        <td>所有数据处理成功，data为空</td>
+                    </tr>
+                    <tr>
+                        <td><code>4002</code></td>
+                        <td>部分成功</td>
+                        <td>部分数据失败，data中包含失败记录</td>
+                    </tr>
+                    <tr>
+                        <td><code>400</code></td>
+                        <td>失败</td>
+                        <td>所有数据处理失败</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>5.3 响应示例</h3>
+
+            <div class="two-column">
+                <div class="column">
+                    <h4>✅ 成功响应</h4>
+                    <div class="code-block" style="font-size: 12px;">
+{
+    <span class="string">"code"</span>: <span class="string">"200"</span>,
+    <span class="string">"messageInfo"</span>: <span class="string">"success"</span>,
+    <span class="string">"data"</span>: []
+}
+                    </div>
+                </div>
+                <div class="column">
+                    <h4>⚠️ 部分成功响应</h4>
+                    <div class="code-block" style="font-size: 12px;">
+{
+    <span class="string">"code"</span>: <span class="string">"4002"</span>,
+    <span class="string">"messageInfo"</span>: <span class="string">"部分数据处理失败"</span>,
+    <span class="string">"data"</span>: [
+        {
+            <span class="string">"key"</span>: <span class="string">"HT202607001-2026-07-01 00:00:00-US-Google"</span>,
+            <span class="string">"value"</span>: <span class="string">"合同不存在"</span>
+        }
+    ]
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 六、错误码说明 -->
+        <div class="section">
+            <h2>❌ 六、错误码说明</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>错误码</th>
+                        <th>错误原因</th>
+                        <th>解决方案</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>400</td>
+                        <td>签名验证失败</td>
+                        <td>检查签名算法和密钥是否正确</td>
+                    </tr>
+                    <tr>
+                        <td>400</td>
+                        <td>数据为空</td>
+                        <td>检查data数组是否为空</td>
+                    </tr>
+                    <tr>
+                        <td>400</td>
+                        <td>参数数量有误</td>
+                        <td>检查count是否与data数组长度一致</td>
+                    </tr>
+                    <tr>
+                        <td>400</td>
+                        <td>合同不存在</td>
+                        <td>检查contractCode是否在CRM中存在</td>
+                    </tr>
+                    <tr>
+                        <td>4002</td>
+                        <td>部分失败</td>
+                        <td>查看data中的具体错误原因</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 七、接入流程 -->
+        <div class="section">
+            <h2>🔄 七、接入流程</h2>
+
+            <div class="flow-step">
+                <strong>步骤1：</strong>确认合同已在CRM中创建
+            </div>
+            <div class="flow-step">
+                <strong>步骤2：</strong>按照CrmData格式准备计提数据
+            </div>
+            <div class="flow-step">
+                <strong>步骤3：</strong>实现签名算法（MD5）
+            </div>
+            <div class="flow-step">
+                <strong>步骤4：</strong>构造请求参数（ExternalParamBo）
+            </div>
+            <div class="flow-step">
+                <strong>步骤5：</strong>发送HTTP POST请求
+            </div>
+            <div class="flow-step">
+                <strong>步骤6：</strong>处理响应结果
+            </div>
+            <div class="flow-step">
+                <strong>步骤7：</strong>失败数据重新推送
+            </div>
+
+            <div class="info-box success">
+                <h4>✅ 注意事项</h4>
+                <ul>
+                    <li><strong>合同必须存在</strong>：推送前确保contractCode在CRM中已创建</li>
+                    <li><strong>数据唯一性</strong>：同一合同+月份+国家+媒体不能重复推送</li>
+                    <li><strong>失败重试</strong>：失败的数据可以重新推送，CRM会自动更新</li>
+                    <li><strong>批量推送</strong>：可以一次推送多条数据，建议每批不超过100条</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 八、CRM生成的字段 -->
+        <div class="section">
+            <h2>🆕 八、CRM生成的字段</h2>
+
+            <div class="info-box">
+                <h4>💡 关键说明</h4>
+                <p>以下字段由CRM自动生成，<strong>新平台不需要传递</strong>：</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>字段</th>
+                        <th>生成规则</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>id</code></td>
+                        <td>雪花算法</td>
+                        <td>数据库主键，19位数字（用户不可见）</td>
+                    </tr>
+                    <tr>
+                        <td><code>provisionId</code></td>
+                        <td>合同号+月份</td>
+                        <td>格式：{合同类型前缀}{contractCode}{settlementMonth}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>provisionId格式示例</h3>
+            <div class="two-column">
+                <div class="column">
+                    <h4>收款合同</h4>
+                    <p><code>S0042272026-06</code></p>
+                    <ul>
+                        <li>S = 收款合同（Sale）</li>
+                        <li>004227 = contractCode</li>
+                        <li>2026-06 = settlementMonth</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h4>付款合同</h4>
+                    <p><code>P0042282026-07</code></p>
+                    <ul>
+                        <li>P = 付款合同（Purchase）</li>
+                        <li>004228 = contractCode</li>
+                        <li>2026-07 = settlementMonth</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 九、总结 -->
+        <div class="section">
+            <h2>✅ 九、总结</h2>
+
+            <div class="two-column">
+                <div class="column">
+                    <h4>📋 新平台需要做的事</h4>
+                    <ul>
+                        <li>✅ <strong>准备数据</strong>：按照CrmData格式准备计提数据</li>
+                        <li>✅ <strong>实现签名</strong>：按照签名算法生成sign</li>
+                        <li>✅ <strong>发送请求</strong>：POST到CRM接口</li>
+                        <li>✅ <strong>处理响应</strong>：根据状态码处理成功/失败</li>
+                        <li>✅ <strong>失败重试</strong>：失败的数据可以重新推送</li>
+                    </ul>
+                </div>
+                <div class="column">
+                    <h4>❌ 新平台不需要做的事</h4>
+                    <ul>
+                        <li>❌ 不需要生成provisionId（CRM自动生成）</li>
+                        <li>❌ 不需要生成id（CRM自动生成）</li>
+                        <li>❌ 不需要关心计提平台的数据库</li>
+                        <li>❌ 不需要关心计提平台的内部逻辑</li>
+                        <li>❌ 不需要传递id字段</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>🔑 关键字段清单</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>必传字段</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>contractCode</code></td>
+                        <td>合同号（CRM中必须存在）</td>
+                    </tr>
+                    <tr>
+                        <td><code>settlementMonth</code></td>
+                        <td>结算月份（格式：yyyy-MM-dd HH:mm:ss）</td>
+                    </tr>
+                    <tr>
+                        <td><code>country</code></td>
+                        <td>国家</td>
+                    </tr>
+                    <tr>
+                        <td><code>media</code></td>
+                        <td>媒体</td>
+                    </tr>
+                    <tr>
+                        <td><code>provisionMoney</code></td>
+                        <td>计提金额（结算币种）</td>
+                    </tr>
+                    <tr>
+                        <td><code>usdMoney</code></td>
+                        <td>美金金额</td>
+                    </tr>
+                    <tr>
+                        <td><code>earningType</code></td>
+                        <td>收入类型</td>
+                    </tr>
+                    <tr>
+                        <td><code>contractType</code></td>
+                        <td>合同类型（0-收款，1-付款）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>📄 新平台接入CRM计提接口文档</p>
+            <p>版本：v1.0 | 更新时间：2026年7月</p>
+            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                如有问题，请联系CRM系统管理员
+            </p>
+        </div>
+    </div>
+</body>
+</html>

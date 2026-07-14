@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计提平台向CRM推送数据流程分析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+        }
+
+        .section h3 {
+            color: #555;
+            font-size: 1.3em;
+            margin: 20px 0 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .flow-diagram {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .flow-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .flow-step {
+            flex: 1;
+            min-width: 200px;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .flow-step::after {
+            content: '→';
+            position: absolute;
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+            color: #667eea;
+        }
+
+        .flow-step:last-child::after {
+            display: none;
+        }
+
+        .flow-step h4 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .flow-step p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f5f7fa;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .code-block .comment {
+            color: #6a9955;
+        }
+
+        .code-block .keyword {
+            color: #569cd6;
+        }
+
+        .code-block .string {
+            color: #ce9178;
+        }
+
+        .code-block .annotation {
+            color: #dcdcaa;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-box.warning {
+            background: linear-gradient(135deg, #ff980015 0%, #ff572215 100%);
+            border-color: #ff9800;
+        }
+
+        .info-box.success {
+            background: linear-gradient(135deg, #4caf5015 0%, #8bc34a15 100%);
+            border-color: #4caf50;
+        }
+
+        .info-box h4 {
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .info-box.warning h4 {
+            color: #ff9800;
+        }
+
+        .info-box.success h4 {
+            color: #4caf50;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+            margin-right: 8px;
+        }
+
+        .tag-blue {
+            background: #667eea;
+            color: white;
+        }
+
+        .tag-green {
+            background: #4caf50;
+            color: white;
+        }
+
+        .tag-orange {
+            background: #ff9800;
+            color: white;
+        }
+
+        .tag-red {
+            background: #f44336;
+            color: white;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .column {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .column h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        @media (max-width: 768px) {
+            .flow-steps {
+                flex-direction: column;
+            }
+
+            .flow-step::after {
+                content: '↓';
+                right: auto;
+                bottom: -15px;
+                top: auto;
+                transform: none;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 计提平台向CRM推送数据流程分析</h1>
+            <p>完整接口文档 · 字段映射 · 同步机制 · 签名验证</p>
+            <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">更新时间：2026年7月</p>
+        </div>
+
+        <div class="content">
+            <!-- 一、整体架构概览 -->
+            <div class="section">
+                <h2>一、整体架构概览</h2>
+
+                <div class="flow-diagram">
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <h4>📝 计提平台</h4>
+                            <p>polaris-accrual-outsouring</p>
+                            <p>计提数据生成与管理</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>🔄 数据转换</h4>
+                            <p>CrmData字段映射</p>
+                            <p>签名生成与加密</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>📤 HTTP推送</h4>
+                            <p>POST请求调用</p>
+                            <p>JSON数据传输</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>📥 CRM系统</h4>
+                            <p>crm/crm-system</p>
+                            <p>数据接收与处理</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>💾 写入数据库</h4>
+                            <p>计提管理表</p>
+                            <p>状态更新反馈</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <h4>🎯 核心流程说明</h4>
+                    <p>计提平台完成计提计算后，将数据通过HTTP接口推送到CRM系统。CRM系统验证签名、解析数据，并写入计提管理表。整个过程支持批量推送、部分失败处理和状态追踪。</p>
+                </div>
+            </div>
+
+            <!-- 二、触发机制 -->
+            <div class="section">
+                <h2>二、触发机制</h2>
+
+                <h3>2.1 手动触发（推荐）</h3>
+                <table>
+                    <tr>
+                        <th>项目</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><strong>接口路径</strong></td>
+                        <td><code>POST /dataTransmission/sendData</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Controller</strong></td>
+                        <td><code>DataTransmissionController.sendDataToSRM()</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>功能</strong></td>
+                        <td>批量推送当月所有未传输的计提数据到CRM</td>
+                    </tr>
+                    <tr>
+                        <td><strong>前端位置</strong></td>
+                        <td>配置中心 → 数据传输 → 传输按钮</td>
+                    </tr>
+                    <tr>
+                        <td><strong>适用场景</strong></td>
+                        <td>所有业务类型（Miads/Offline/Preinstall）</td>
+                    </tr>
+                </table>
+
+                <h3>2.2 自动触发（仅限特定条件）</h3>
+                <div class="two-column">
+                    <div class="column">
+                        <h4>✅ 触发条件</h4>
+                        <ul>
+                            <li><span class="tag tag-blue">Miads</span> 程序化计提</li>
+                            <li><span class="tag tag-green">一级DSP</span> = "online"</li>
+                            <li>保存计提时自动触发</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <h4>❌ 不触发条件</h4>
+                        <ul>
+                            <li><span class="tag tag-orange">Offline</span> 线下计提</li>
+                            <li><span class="tag tag-red">Preinstall</span> 预装计提</li>
+                            <li>一级DSP ≠ "online"的Miads</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// AccrualAutomationController.java 第461-487行</span>
+<span class="keyword">if</span> (Boolean.valueOf(paramMap.get(<span class="string">"save"</span>).get(0))) {
+    <span class="comment">// 保存时如果是一级DSP=线上(programmatic)，自动推送CRM</span>
+    <span class="keyword">if</span> (StrUtil.equalsAnyIgnoreCase(
+            CommonConstant.DSP_LEVEL1_ONLINE,  <span class="comment">// 常量值 = "online"</span>
+            map.get(CommonConstant.DSP_LEVEL1).get(0))) {
+        <span class="comment">// ⭐ 只有一级DSP="online"时才执行推送</span>
+        accrualMiadsAutomationService.sendToCRM(resultList);
+    }
+}
+                </div>
+
+                <div class="info-box warning">
+                    <h4>⚠️ 注意事项</h4>
+                    <ul>
+                        <li>自动推送仅在<span class="highlight">保存</span>时触发，不是在计提计算时</li>
+                        <li>如果推送失败，会返回Excel文件供用户查看失败原因</li>
+                        <li>其他业务类型必须手动点击"传输"按钮</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 三、接口字段映射 -->
+            <div class="section">
+                <h2>三、接口字段映射</h2>
+
+                <h3>3.1 接口地址</h3>
+                <div class="code-block">
+<span class="comment">// 配置文件 application-preview-ali-sgp-1.yml</span>
+accrual:
+  crm:
+    sent-request-url: <span class="string">staging.iibcrm.global.e.mi.com/crm/api/o/provision/external/accept</span>
+    month: <span class="keyword">true</span>  <span class="comment"># 是否只能发当月数据</span>
+                </div>
+
+                <h3>3.2 请求参数结构 (ExternalParamBo)</h3>
+                <div class="code-block">
+{
+    <span class="string">"sign"</span>: <span class="string">"A1B2C3D4E5F6..."</span>,        <span class="comment">// 签名字符串（每次不同）</span>
+    <span class="string">"timestamp"</span>: <span class="string">"2026-07-07T10:30:00"</span>, <span class="comment">// 时间戳（每次不同）</span>
+    <span class="string">"count"</span>: <span class="keyword">10</span>,                        <span class="comment">// 数据条数</span>
+    <span class="string">"data"</span>: [                           <span class="comment">// CrmData数组</span>
+        { CrmData, CrmData, ... }
+    ]
+}
+                </div>
+
+                <h3>3.3 CrmData字段映射表</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>字段名</th>
+                            <th>类型</th>
+                            <th>说明</th>
+                            <th>来源字段</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>String</td>
+                            <td>计提记录ID（数据库主键）</td>
+                            <td><code>AccrualMiadsAutomation.id</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>contractCode</code></td>
+                            <td>String</td>
+                            <td>计提编号/合同号</td>
+                            <td><code>AccrualMiadsAutomation.accrualNo</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>country</code></td>
+                            <td>String</td>
+                            <td>国家</td>
+                            <td><code>AccrualMiadsAutomation.newRegion</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>media</code></td>
+                            <td>String</td>
+                            <td>媒体</td>
+                            <td><code>AccrualMiadsAutomation.newMedia</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>provisionMoney</code></td>
+                            <td>BigDecimal</td>
+                            <td>计提收入（结算币种）</td>
+                            <td><code>AccrualMiadsAutomation.dspFee</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>usdMoney</code></td>
+                            <td>BigDecimal</td>
+                            <td>预计收入（美金）</td>
+                            <td><code>AccrualMiadsAutomation.exDspFee</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>origUsdMoney</code></td>
+                            <td>BigDecimal</td>
+                            <td>原始预计收入（美金）</td>
+                            <td><code>AccrualMiadsAutomation.oriExDspFee</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>earningType</code></td>
+                            <td>String</td>
+                            <td>计提类型</td>
+                            <td><code>AccrualMiadsAutomation.accrualType</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>contractType</code></td>
+                            <td>String</td>
+                            <td>合同类型</td>
+                            <td>固定值 <code>"0"</code>（收款合同）</td>
+                        </tr>
+                        <tr>
+                            <td><code>settlementMonth</code></td>
+                            <td>String</td>
+                            <td>结算月份</td>
+                            <td><code>AccrualMiadsAutomation.dt</code><br>格式：yyyy-MM-dd HH:mm:ss</td>
+                        </tr>
+                        <tr>
+                            <td><code>accrualBy</code></td>
+                            <td>String</td>
+                            <td>计提人</td>
+                            <td><code>AccrualMiadsAutomation.accrualBy</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>remark</code></td>
+                            <td>String</td>
+                            <td>备注</td>
+                            <td>空字符串 <code>""</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>3.4 字段映射代码</h3>
+                <div class="code-block">
+<span class="comment">// AccrualMiadsAutomationServiceImpl.java</span>
+<span class="keyword">public</span> List&lt;CrmData&gt; crmFieldMapping(List&lt;AccrualMiadsAutomation&gt; dataList) {
+    List&lt;CrmData&gt; resList = <span class="keyword">new</span> ArrayList&lt;&gt;();
+    dataList.stream().forEach(item -&gt; {
+        CrmData crmData = <span class="keyword">new</span> CrmData();
+        crmData.setId(item.getId() + <span class="string">""</span>)                    <span class="comment">// 数据库主键ID</span>
+                .setContractCode(item.getAccrualNo())          <span class="comment">// 计提编号</span>
+                .setCountry(item.getNewRegion())               <span class="comment">// 国家</span>
+                .setMedia(item.getNewMedia())                  <span class="comment">// 媒体</span>
+                .setProvisionMoney(<span class="keyword">new</span> BigDecimal(item.getDspFee()))      <span class="comment">// 计提收入</span>
+                .setUsdMoney(<span class="keyword">new</span> BigDecimal(item.getExDspFee()))        <span class="comment">// 预计收入</span>
+                .setOrigUsdMoney(<span class="keyword">new</span> BigDecimal(item.getOriExDspFee())) <span class="comment">// 原始预计</span>
+                .setEarningType(item.getAccrualType())         <span class="comment">// 计提类型</span>
+                .setContractType(<span class="string">"0"</span>)                         <span class="comment">// 固定值：收款合同</span>
+                .setSettlementMonth(DateUtils.getDateStrByDt(item.getDt()) + <span class="string">" 00:00:00"</span>)
+                .setAccrualBy(item.getAccrualBy())             <span class="comment">// 计提人</span>
+                .setRemark(<span class="string">""</span>);                               <span class="comment">// 备注为空</span>
+        resList.add(crmData);
+    });
+    <span class="keyword">return</span> resList;
+}
+                </div>
+            </div>
+
+            <!-- 四、签名机制 -->
+            <div class="section">
+                <h2>四、签名机制</h2>
+
+                <h3>4.1 签名生成逻辑</h3>
+                <div class="info-box">
+                    <h4>🔑 关键点</h4>
+                    <p><strong>签名每次都不一样！</strong>因为签名包含了时间戳、数据内容和数据条数，这些参数每次请求都在变化。</p>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// SignUtil.java</span>
+<span class="keyword">public static</span> String generateSignSign(Object Data, Date date, Integer count) {
+    Map&lt;String,Object&gt; param = <span class="keyword">new</span> HashMap(16);
+    param.put(<span class="string">"param"</span>, Data);           <span class="comment">// ⭐ 数据内容（每次不同）</span>
+    param.put(<span class="string">"secretKey"</span>, APP_SECRET); <span class="comment">// 固定密钥</span>
+    param.put(<span class="string">"timestamp"</span>, date);        <span class="comment">// ⭐ 时间戳（每次不同）</span>
+    param.put(<span class="string">"count"</span>, count);           <span class="comment">// ⭐ 数据条数（每次可能不同）</span>
+    <span class="keyword">return</span> createSign(param, APP_SECRET);
+}
+
+<span class="comment">// 签名算法</span>
+<span class="keyword">public static</span> String createSign(Object param, String accessSecret) {
+    <span class="comment">// 1. 将参数转为JSON再转为Map</span>
+    <span class="comment">// 2. 对Map的key进行排序</span>
+    <span class="comment">// 3. 拼接字符串：key1=value1&key2=value2&...&secretKey=xxx</span>
+    <span class="comment">// 4. MD5加密后转大写</span>
+    String sign = DigestUtils.md5Hex(temp.toString()).toUpperCase();
+    <span class="keyword">return</span> sign;
+}
+
+<span class="comment">// 固定密钥（计提平台和CRM系统共用）</span>
+<span class="keyword">public static final</span> String APP_SECRET = <span class="string">"244e7f76db84b915ff10dd9d239eeb4b"</span>;
+                </div>
+
+                <h3>4.2 签名组成要素</h3>
+                <table>
+                    <tr>
+                        <th>要素</th>
+                        <th>是否固定</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><code>data</code></td>
+                        <td><span class="tag tag-red">不固定</span></td>
+                        <td>计提数据内容，每次推送的数据不同</td>
+                    </tr>
+                    <tr>
+                        <td><code>timestamp</code></td>
+                        <td><span class="tag tag-red">不固定</span></td>
+                        <td>请求时间戳，精确到毫秒</td>
+                    </tr>
+                    <tr>
+                        <td><code>count</code></td>
+                        <td><span class="tag tag-orange">可能变化</span></td>
+                        <td>数据条数，取决于当月未推送的数据量</td>
+                    </tr>
+                    <tr>
+                        <td><code>secretKey</code></td>
+                        <td><span class="tag tag-green">固定</span></td>
+                        <td>APP_SECRET，计提平台和CRM共用</td>
+                    </tr>
+                </table>
+
+                <h3>4.3 签名验证流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <h4>📥 CRM接收请求</h4>
+                            <p>获取sign、data、timestamp、count</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>🔄 重新生成签名</h4>
+                            <p>使用相同的密钥和算法</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>✅ 对比验证</h4>
+                            <p>比较两个签名是否一致</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>📝 处理结果</h4>
+                            <p>通过则处理数据，否则拒绝</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// CRM端签名验证 (ProvisionManageExternalController.java)</span>
+@PostMapping(<span class="string">"/accept"</span>)
+<span class="keyword">public</span> ResponseData&lt;List&lt;Pair&lt;String,String&gt;&gt;&gt; accept(
+        @RequestBody ExternalParamBo&lt;Object&gt; paramBo) {
+    <span class="comment">// ⭐ 验证签名</span>
+    SignUtil.verificationSignObject(paramBo);
+    <span class="comment">// ... 处理数据</span>
+}
+                </div>
+            </div>
+
+            <!-- 五、id字段说明 -->
+            <div class="section">
+                <h2>五、id字段说明</h2>
+
+                <h3>5.1 id的来源</h3>
+                <div class="info-box success">
+                    <h4>💡 关键点</h4>
+                    <p><strong>id在计提保存到数据库时就已生成</strong>，推送时直接使用。推送过程中不会再生成新的id。</p>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// AccrualMiadsAutomation实体类</span>
+@TableId(type = IdType.AUTO)  <span class="comment">// ⭐ 数据库自增主键</span>
+@ApiModelProperty(value = <span class="string">"id"</span>)
+<span class="keyword">private</span> Integer id;
+                </div>
+
+                <h3>5.2 id的生命周期</h3>
+                <div class="flow-diagram">
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <h4>1️⃣ 计提保存</h4>
+                            <p>用户点击保存按钮</p>
+                            <p>数据写入数据库</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>2️⃣ 数据库生成id</h4>
+                            <p>accrual_miads_automation表</p>
+                            <p>自增主键：12345</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>3️⃣ 推送到CRM</h4>
+                            <p>crmData.setId("12345")</p>
+                            <p>使用已有的id</p>
+                        </div>
+                        <div class="flow-step">
+                            <h4>4️⃣ CRM接收</h4>
+                            <p>验证id是否存在</p>
+                            <p>写入CRM计提表</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// 推送时id已经存在</span>
+<span class="comment">// AccrualMiadsAutomationServiceImpl.java</span>
+crmData.setId(item.getId() + <span class="string">""</span>)  <span class="comment">// item.getId() = 12345（数据库主键）</span>
+
+<span class="comment">// CRM端接收</span>
+<span class="comment">// ProvisionAcceptBo.java</span>
+<span class="keyword">private</span> String id;  <span class="comment">// 接收计提平台传来的id</span>
+                </div>
+
+                <h3>5.3 为什么需要id？</h3>
+                <ul>
+                    <li><strong>唯一标识</strong>：用于标识每条计提记录</li>
+                    <li><strong>幂等性</strong>：防止重复推送同一条数据</li>
+                    <li><strong>失败重试</strong>：推送失败后可以重新推送，CRM通过id判断是否已存在</li>
+                    <li><strong>状态追踪</strong>：记录每条数据的传输状态</li>
+                </ul>
+            </div>
+
+            <!-- 六、同步机制详解 -->
+            <div class="section">
+                <h2>六、同步机制详解</h2>
+
+                <h3>6.1 计提平台推送流程</h3>
+                <div class="code-block">
+<span class="comment">// DataTransmissionServiceImpl.java</span>
+@Override
+<span class="keyword">public</span> Result&lt;?&gt; sendDataToSRM() {
+    <span class="comment">// 1. 获取当月和上月时间</span>
+    List&lt;Integer&gt; thisAndLastMonth = DateUtils.getThisAndLastMonth();
+    <span class="keyword">int</span> thisMoth = Integer.parseInt(String.valueOf(thisAndLastMonth.get(0)));
+
+    <span class="comment">// 2. 查询所有未传输数据</span>
+    List&lt;AccrualMiadsAutomation&gt; miadsData = iAccrualMiadsAutomationService.recordQueryForCRM(thisMoth);
+    List&lt;AccrualOfflineAutomation&gt; offlineData = iAccrualOfflineAutomationService.recordQueryForCRM(thisMoth);
+    List&lt;AccrualPreinstallAutomation&gt; preinstallData = iAccrualPreinstallAutomationService.recordQueryForCRM(thisMoth);
+
+    <span class="comment">// 3. 字段映射转换为CrmData</span>
+    List&lt;CrmData&gt; crmData = <span class="keyword">new</span> ArrayList&lt;&gt;();
+    crmData.addAll(iAccrualMiadsAutomationService.crmFieldMapping(miadsData));
+    crmData.addAll(iAccrualOfflineAutomationService.crmFieldMapping(offlineData));
+    crmData.addAll(iAccrualPreinstallAutomationService.crmFieldMapping(preinstallData));
+
+    <span class="comment">// 4. 检查是否有数据</span>
+    <span class="keyword">if</span> (crmData.isEmpty()) {
+        <span class="keyword">return</span> Result.error(CommonMsg.NO_DATA_THIS_MONTH);
+    }
+
+    <span class="comment">// 5. HTTP调用CRM接口</span>
+    ResponseDataFromCrmVO responseData = sendHttpRequesttoCRM(crmData);
+
+    <span class="comment">// 6. 处理返回结果</span>
+    String code = responseData.getCode();
+    String state;
+    <span class="keyword">switch</span> (code) {
+        <span class="keyword">case</span> (<span class="string">"200"</span>):    <span class="comment">// 全部成功</span>
+            state = CommonConstant.STATE_0;
+            saveDataTransmission(CommonConstant.STATE_0);
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> (<span class="string">"4002"</span>):   <span class="comment">// 部分成功</span>
+            state = CommonConstant.STATE_2;
+            List&lt;String&gt; failIds = responseData.getData().stream()
+                    .map(row -&gt; row.getKey()).collect(Collectors.toList());
+            saveDataTransmission(CommonConstant.STATE_2, String.join(<span class="string">","</span>, failIds));
+            <span class="keyword">break</span>;
+        <span class="keyword">default</span>:         <span class="comment">// 全部失败</span>
+            saveDataTransmission(CommonConstant.STATE_1);
+            <span class="keyword">throw new</span> AutomaticAccrualException(responseData.getMessageInfo());
+    }
+
+    <span class="comment">// 7. 更新传输状态</span>
+    iAccrualMiadsAutomationService.updateTransmissionState(miadsData, CommonConstant.STATE_0);
+    iAccrualOfflineAutomationService.updateTransmissionState(offlineData, CommonConstant.STATE_0);
+    iAccrualPreinstallAutomationService.updateTransmissionState(preinstallData, CommonConstant.STATE_0);
+
+    <span class="keyword">return</span> Result.OK(resMap);
+}
+                </div>
+
+                <h3>6.2 HTTP请求发送</h3>
+                <div class="code-block">
+<span class="comment">// DataTransmissionServiceImpl.java</span>
+<span class="keyword">private</span> ResponseDataFromCrmVO sendHttpRequesttoCRM(List&lt;CrmData&gt; crmDatas) {
+    Date date = <span class="keyword">new</span> Date();
+    Object obj = JSON.parse(JSON.toJSONString(crmDatas));
+
+    <span class="comment">// ⭐ 生成签名（每次不同）</span>
+    String sign = SignUtil.generateSignSign(obj, date, crmDatas.size());
+
+    Map&lt;String, Object&gt; params = <span class="keyword">new</span> HashMap&lt;&gt;();
+    params.put(<span class="string">"data"</span>, obj);
+    params.put(<span class="string">"sign"</span>, sign);
+    params.put(<span class="string">"timestamp"</span>, date);
+    params.put(<span class="string">"count"</span>, crmDatas.size());
+
+    String json = JSON.toJSONString(params);
+    log.info(<span class="string">"推送CRM数据: {}"</span>, json);
+
+    <span class="comment">// 发送HTTP POST请求</span>
+    <span class="keyword">try</span> (HttpResponse response = HttpRequest.post(CRM_URL)
+            .header(<span class="string">"Content-Type"</span>, <span class="string">"application/json"</span>)
+            .body(json)
+            .execute()) {
+        <span class="keyword">if</span> (response.getStatus() != HttpStatus.HTTP_OK) {
+            <span class="keyword">throw new</span> AutomaticAccrualException(<span class="string">"CRM系统返回错误码:"</span> + response.getStatus());
+        }
+        body = response.body();
+    }
+
+    <span class="comment">// 解析CRM返回结果</span>
+    responseDataFromCrmVO = JSON.parseObject(body, <span class="keyword">new</span> TypeReference&lt;ResponseDataFromCrmVO&gt;() {});
+    <span class="keyword">return</span> responseDataFromCrmVO;
+}
+                </div>
+
+                <h3>6.3 CRM端处理流程</h3>
+                <div class="code-block">
+<span class="comment">// ProvisionManageExternalServiceImpl.java</span>
+@Override
+<span class="keyword">public</span> List&lt;ProvisionAcceptBo&gt; accept(List&lt;ProvisionAcceptBo&gt; provisionBo) {
+    log.info(<span class="string">"接收自动化计提数据:{}"</span>, JsonUtil.toJson(provisionBo));
+
+    <span class="comment">// 1. 获取所有合同ID</span>
+    List&lt;String&gt; allContractCodes = provisionBo.stream()
+            .map(ProvisionAcceptBo::getContractCode)
+            .map(String::toUpperCase)
+            .distinct()
+            .collect(Collectors.toList());
+
+    <span class="comment">// 2. 查询所有合同（收款+付款）</span>
+    Map&lt;String, BProvisionManage&gt; allContract = acceptStepsQueryAllContract(allContractCodes);
+
+    <span class="comment">// 3. 查询已有计提数据</span>
+    List&lt;BProvisionManage&gt; existsPms = provisionManageService.getExistsPaymentPms(allContractCodes, <span class="keyword">null</span>);
+
+    <span class="comment">// 4. 数据分组验证</span>
+    Map&lt;String, Map&lt;String, BProvisionManage&gt;&gt; existsPmInfoMap = acceptStepsAccrualGrouping(existsPms);
+
+    <span class="comment">// 5. 验证数据</span>
+    <span class="keyword">if</span> (filterAllProvisionAcceptBo(allContractCodes, allContract, existsPms, existsPmInfoMap, provisionBo)) {
+        <span class="comment">// 有至少一条出现问题，一票否决，所有都失败</span>
+        <span class="keyword">return</span> provisionBo;
+    }
+
+    <span class="comment">// 6. 按合同和月分组处理</span>
+    Map&lt;String, List&lt;ProvisionAcceptBo&gt;&gt; allMap = provisionBo.stream()
+            .collect(Collectors.groupingBy(vo -&gt; vo.getContractCode() + vo.getSettlementMonth()));
+    provisionManageService.handleCheckDataAccept(allMap, allContract, existsPmInfoMap);
+
+    <span class="comment">// 7. 返回失败的数据（带错误原因）</span>
+    <span class="keyword">return</span> provisionBo.stream()
+            .filter(item -&gt; StringUtils.isNotBlank(item.getErrorReason()))
+            .collect(Collectors.toList());
+}
+                </div>
+            </div>
+
+            <!-- 七、状态管理 -->
+            <div class="section">
+                <h2>七、状态管理</h2>
+
+                <h3>7.1 传输状态码</h3>
+                <table>
+                    <tr>
+                        <th>状态码</th>
+                        <th>常量</th>
+                        <th>含义</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-green">0</span></td>
+                        <td><code>STATE_0</code></td>
+                        <td>传输成功</td>
+                        <td>数据已成功推送到CRM</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-blue">1</span></td>
+                        <td><code>STATE_1</code></td>
+                        <td>传输中/待传输</td>
+                        <td>数据尚未推送或正在推送中</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-red">2</span></td>
+                        <td><code>STATE_2</code></td>
+                        <td>传输失败</td>
+                        <td>推送失败，需查看失败原因</td>
+                    </tr>
+                </table>
+
+                <h3>7.2 CRM返回码</h3>
+                <table>
+                    <tr>
+                        <th>返回码</th>
+                        <th>含义</th>
+                        <th>处理方式</th>
+                    </tr>
+                    <tr>
+                        <td><code>200</code></td>
+                        <td>全部成功</td>
+                        <td>所有数据写入CRM，状态更新为STATE_0</td>
+                    </tr>
+                    <tr>
+                        <td><code>4002</code></td>
+                        <td>部分成功</td>
+                        <td>返回失败的ID列表，成功的更新为STATE_0，失败的保持STATE_2</td>
+                    </tr>
+                    <tr>
+                        <td><code>400</code>或其他</td>
+                        <td>全部失败</td>
+                        <td>所有数据状态更新为STATE_2，记录错误原因</td>
+                    </tr>
+                </table>
+
+                <h3>7.3 失败处理</h3>
+                <div class="info-box warning">
+                    <h4>⚠️ 失败场景</h4>
+                    <ul>
+                        <li><strong>合同不存在</strong>：CRM中找不到对应的合同</li>
+                        <li><strong>签名验证失败</strong>：sign不匹配，可能是密钥错误或数据被篡改</li>
+                        <li><strong>网络异常</strong>：无法连接CRM系统</li>
+                        <li><strong>数据格式错误</strong>：字段类型不匹配或必填字段缺失</li>
+                        <li><strong>重复推送</strong>：同一条数据已经存在于CRM中</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 八、业务类型处理 -->
+            <div class="section">
+                <h2>八、业务类型处理</h2>
+
+                <h3>8.1 支持的业务类型</h3>
+                <table>
+                    <tr>
+                        <th>业务类型</th>
+                        <th>常量</th>
+                        <th>说明</th>
+                        <th>自动推送</th>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-blue">Miads</span></td>
+                        <td><code>BUSINESS_MIADS</code></td>
+                        <td>程序化广告计提</td>
+                        <td>✅ 一级DSP="online"时自动</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-green">Offline</span></td>
+                        <td><code>BUSINESS_OFFLINE</code></td>
+                        <td>线下广告计提</td>
+                        <td>❌ 仅手动推送</td>
+                    </tr>
+                    <tr>
+                        <td><span class="tag tag-orange">Preinstall</span></td>
+                        <td><code>BUSINESS_PREINSTALL</code></td>
+                        <td>预装广告计提</td>
+                        <td>❌ 仅手动推送</td>
+                    </tr>
+                </table>
+
+                <h3>8.2 各业务类型的映射实现</h3>
+                <div class="two-column">
+                    <div class="column">
+                        <h4>Miads程序化</h4>
+                        <p><code>AccrualMiadsAutomationServiceImpl</code></p>
+                        <ul>
+                            <li>字段映射：<code>crmFieldMapping()</code></li>
+                            <li>推送方法：<code>sendToCRM()</code></li>
+                            <li>支持自动推送</li>
+                        </ul>
+                    </div>
+                    <div class="column">
+                        <h4>Offline线下</h4>
+                        <p><code>AccrualOfflineAutomationServiceImpl</code></p>
+                        <ul>
+                            <li>字段映射：<code>crmFieldMapping()</code></li>
+                            <li>推送方法：<code>sendToCRM()</code></li>
+                            <li>仅手动推送</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 九、关键配置 -->
+            <div class="section">
+                <h2>九、关键配置</h2>
+
+                <h3>9.1 配置文件</h3>
+                <div class="code-block">
+<span class="comment"># application-preview-ali-sgp-1.yml</span>
+accrual:
+  crm:
+    <span class="comment"># CRM接口地址</span>
+    sent-request-url: <span class="string">staging.iibcrm.global.e.mi.com/crm/api/o/provision/external/accept</span>
+    <span class="comment"># 是否只能发当月数据</span>
+    month: <span class="keyword">true</span>
+  diff: <span class="keyword">3000000</span>  <span class="comment"># 差异阈值</span>
+  diff2: <span class="keyword">500000</span>  <span class="comment"># 差异阈值2</span>
+                </div>
+
+                <h3>9.2 数据库表</h3>
+                <table>
+                    <tr>
+                        <th>系统</th>
+                        <th>表名</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>计提平台</td>
+                        <td><code>accrual_miads_automation</code></td>
+                        <td>Miads计提自动化表</td>
+                    </tr>
+                    <tr>
+                        <td>计提平台</td>
+                        <td><code>accrual_offline_automation</code></td>
+                        <td>Offline计提自动化表</td>
+                    </tr>
+                    <tr>
+                        <td>计提平台</td>
+                        <td><code>accrual_preinstall_automation</code></td>
+                        <td>Preinstall计提自动化表</td>
+                    </tr>
+                    <tr>
+                        <td>计提平台</td>
+                        <td><code>data_transmission</code></td>
+                        <td>数据传输记录表</td>
+                    </tr>
+                    <tr>
+                        <td>CRM</td>
+                        <td><code>b_provision_manage</code></td>
+                        <td>计提管理表</td>
+                    </tr>
+                </table>
+
+                <h3>9.3 关键接口汇总</h3>
+                <table>
+                    <tr>
+                        <th>系统</th>
+                        <th>接口路径</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>计提平台</td>
+                        <td><code>POST /dataTransmission/sendData</code></td>
+                        <td>手动推送所有未传输数据</td>
+                    </tr>
+                    <tr>
+                        <td>计提平台</td>
+                        <td><code>POST /accrualAutomation/automationSave</code></td>
+                        <td>保存计提（Miads自动推送）</td>
+                    </tr>
+                    <tr>
+                        <td>CRM</td>
+                        <td><code>POST /o/provision/external/accept</code></td>
+                        <td>接收计提数据</td>
+                    </tr>
+                    <tr>
+                        <td>CRM</td>
+                        <td><code>POST /o/provision/external/generate</code></td>
+                        <td>生成签名（调试用）</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- 十、常见问题 -->
+            <div class="section">
+                <h2>十、常见问题</h2>
+
+                <div class="info-box">
+                    <h4>❓ Q1: 为什么签名每次不一样？</h4>
+                    <p>A: 签名算法中包含了时间戳(timestamp)、数据内容(data)和数据条数(count)，这些参数每次请求都在变化，所以生成的签名也会不同。这是为了保证请求的唯一性和安全性。</p>
+                </div>
+
+                <div class="info-box">
+                    <h4>❓ Q2: CrmData的id字段是推送时生成的吗？</h4>
+                    <p>A: 不是。id在计提数据保存到数据库时就由数据库自增主键生成了。推送时直接使用这个已有的id，用于CRM端识别和去重。</p>
+                </div>
+
+                <div class="info-box">
+                    <h4>❓ Q3: 什么情况下会自动推送到CRM？</h4>
+                    <p>A: 只有满足以下条件时才会自动推送：<br>
+                    1. 业务类型是Miads（程序化）<br>
+                    2. 一级DSP = "online"<br>
+                    3. 保存计提时触发<br>
+                    其他情况都需要手动点击"传输"按钮。</p>
+                </div>
+
+                <div class="info-box">
+                    <h4>❓ Q4: 推送失败后如何处理？</h4>
+                    <p>A: 系统会记录失败原因，并返回Excel文件供用户查看。用户可以：<br>
+                    1. 查看失败原因（合同不存在、签名错误等）<br>
+                    2. 修正问题后重新推送<br>
+                    3. 通过"传输"按钮重新推送失败的数据</p>
+                </div>
+
+                <div class="info-box">
+                    <h4>❓ Q5: 可以推送历史月份的数据吗？</h4>
+                    <p>A: 默认情况下（accrual.crm.month=true）只能推送当月数据。如果需要推送历史数据，需要修改配置文件中的month为false。</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>📄 计提平台向CRM推送数据流程分析文档</p>
+            <p>生成时间：2026年7月7日 | 版本：v1.0</p>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <span class="tag tag-blue">计提平台</span>
+                <span class="tag tag-green">CRM系统</span>
+                <span class="tag tag-orange">数据推送</span>
+                <span class="tag tag-red">同步机制</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
